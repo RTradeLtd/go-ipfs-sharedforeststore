@@ -1,0 +1,30 @@
+version: 2.1
+orbs:
+  codecov: codecov/codecov@1.0.2
+jobs:
+  build:
+    resource_class: small
+    environment:
+      GOPRIVATE: github.com/RTradeLtd/*
+      CODECOV_TOKEN: <your-token-here>
+    docker:
+      - image: circleci/golang:1.14.4
+      # - image: circleci/postgres:latest
+      #  environment:
+      #   POSTGRES_HOST_AUTH_METHOD: trust
+      #   POSTGRES_DB: datastores
+    working_directory: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}
+    steps:
+      - checkout
+      - run: 
+          name: download dependencies
+          command: go mod download
+      - run:
+          name: install-staticcheck
+          command: go get honnef.co/go/tools/cmd/staticcheck
+      - run:
+          name: run-staticcheck
+          command: make verifiers
+      - run: go test -v -race -coverprofile=coverage.txt -timeout 1800s ./...
+      - codecov/upload:
+          file: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}/coverage.txt
