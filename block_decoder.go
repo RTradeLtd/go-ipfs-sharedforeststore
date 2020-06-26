@@ -3,7 +3,9 @@ package sharedforeststore
 import (
 	"fmt"
 
+	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+	ipld "github.com/ipfs/go-ipld-format/"
 	"github.com/ipfs/go-merkledag"
 	"github.com/pkg/errors"
 )
@@ -21,7 +23,23 @@ func (e *CodecNotSupportedError) Error() string {
 func LinkDecoder(id cid.Cid, data []byte) ([]cid.Cid, error) {
 	switch id.Prefix().GetCodec() {
 	default:
-		return nil, errors.WithStack(&CodecNotSupportedError{Cid: id})
+		b, err := blocks.NewBlockWithCid(data, id)
+		if err != nil {
+			return nil, err
+		}
+		node, err := ipld.DefaultBlockDecoder.Decode(b)
+		if err != nil {
+			return nil, err
+		}
+		ls := node.Links()
+		out := make([]cid.Cid, len(ls))
+		for i, l := range ls {
+			if l == nil {
+				return nil, errors.Errorf("block %v contains empty links %v", id, ls)
+			}
+			out[i] = l.Cid
+		}
+		return out, nil
 	case cid.Raw:
 		return nil, nil
 	case cid.DagProtobuf:
@@ -29,11 +47,11 @@ func LinkDecoder(id cid.Cid, data []byte) ([]cid.Cid, error) {
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
-		links := pnode.Links()
-		out := make([]cid.Cid, len(links))
-		for i, l := range links {
+		ls := pnode.Links()
+		out := make([]cid.Cid, len(ls))
+		for i, l := range ls {
 			if l == nil {
-				return nil, errors.Errorf("block %v contains empty links %v", id, links)
+				return nil, errors.Errorf("block %v contains empty links %v", id, ls)
 			}
 			out[i] = l.Cid
 		}
