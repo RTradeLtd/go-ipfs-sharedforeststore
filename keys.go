@@ -36,6 +36,11 @@ func newKeyFromCid(id cid.Cid, suffixKeys ...datastore.Key) datastore.Key {
 	return datastore.RawKey(buf.String())
 }
 
+type readWriteStore interface {
+	datastore.Read
+	datastore.Write
+}
+
 var counterSuffixKey = datastore.NewKey("/c")
 
 type counterKey datastore.Key
@@ -44,7 +49,7 @@ func getCounterKey(id cid.Cid) counterKey {
 	return counterKey(newKeyFromCid(id, counterSuffixKey))
 }
 
-func getCount(db datastore.Read, id cid.Cid) (uint64, counterKey, error) {
+func getCount(db datastore.Read, id cid.Cid) (int64, counterKey, error) {
 	key := getCounterKey(id)
 	v, err := db.Get(datastore.Key(key))
 	if err == datastore.ErrNotFound {
@@ -54,16 +59,18 @@ func getCount(db datastore.Read, id cid.Cid) (uint64, counterKey, error) {
 	if size != len(v) || count == 0 {
 		return 0, key, errors.Errorf("corrupted metadata error: expected binary.Uvarint, but got `%x`", v)
 	}
-	return count, key, nil
+	return int64(count), key, nil
 }
 
-func setCount(db datastore.Write, v uint64, k0 counterKey) error {
+func setCount(db datastore.Write, v int64, k0 counterKey) error {
 	k := datastore.Key(k0)
 	if v == 0 {
 		return db.Delete(k)
+	} else if v < 0 {
+		return errors.Errorf("can not set a count of less than 0 for key:%v, count:%v", k, v)
 	}
 	buf := make([]byte, binary.MaxVarintLen64)
-	n := binary.PutUvarint(buf, v)
+	n := binary.PutUvarint(buf, uint64(v))
 	return db.Put(k, buf[:n])
 }
 
@@ -75,6 +82,15 @@ func getDataKey(id cid.Cid) datastore.Key {
 
 func setData(db datastore.Write, id cid.Cid, data []byte) error {
 	return db.Put(getDataKey(id), data)
+}
+
+func deleteData(db readWriteStore, id cid.Cid) ([]byte, error) {
+	key := getDataKey(id)
+	data, err := db.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	return data, db.Delete(key)
 }
 
 var tagSuffixKey = datastore.NewKey("/t")
