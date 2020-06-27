@@ -5,8 +5,7 @@ jobs:
   build:
     resource_class: small
     environment:
-      GOPRIVATE: github.com/RTradeLtd/*
-      CODECOV_TOKEN: <your-token-here>
+      CODECOV_TOKEN: 731a6a57-9ac6-43eb-8388-1dfb71308dd4
     docker:
       - image: circleci/golang:1.14.4
     working_directory: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}
