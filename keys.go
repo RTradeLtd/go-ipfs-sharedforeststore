@@ -80,6 +80,13 @@ func getDataKey(id cid.Cid) datastore.Key {
 	return newKeyFromCid(id, dataSuffixKey)
 }
 
+func dataKeyToCid(s string) (cid.Cid, error) {
+	if len(s) < 4 {
+		return cid.Cid{}, errors.Errorf("key:%v is too short to contain cid", s)
+	}
+	return cid.Decode(s[1 : len(s)-len(dataSuffixKey.String())])
+}
+
 func setData(db datastore.Write, id cid.Cid, data []byte) error {
 	return db.Put(getDataKey(id), data)
 }
@@ -104,3 +111,5 @@ var internalTagSuffixKey = datastore.NewKey("/i")
 func getInternalTaggedKey(id cid.Cid, tag datastore.Key) datastore.Key {
 	return newKeyFromCid(id, internalTagSuffixKey, tag)
 }
+
+var _, _ = getTaggedKey, getInternalTaggedKey //block used warnings during development

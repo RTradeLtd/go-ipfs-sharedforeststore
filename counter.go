@@ -2,9 +2,12 @@ package sharedforeststore
 
 import (
 	"context"
+	"io"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	"go.uber.org/multierr"
 )
 
@@ -39,6 +42,9 @@ func NewCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *Counted {
 }
 
 func (c *Counted) NewTransaction(ctx context.Context) (*CountedTx, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	tx, err := c.db.NewTransaction(false)
 	return &CountedTx{
 		Context: ctx,
@@ -61,14 +67,14 @@ func (c *Counted) TxWarp(ctx context.Context, f func(tx *CountedTx) error) error
 		if commitError = tx.tx.Commit(); commitError == nil {
 			return nil
 		}
-		if err := tx.Reset(c.db); err != nil{
+		if err := tx.Reset(c.db); err != nil {
 			return multierr.Combine(err, commitError)
 		}
 	}
 }
 
 func (c *CountedTx) Reset(db datastore.TxnDatastore) (err error) {
-	if err := c.Err(); err != nil{
+	if err := c.Err(); err != nil {
 		return err
 	}
 	c.tx.Discard()
@@ -166,4 +172,58 @@ func (c *CountedTx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 		}
 	}
 	return count, nil
+}
+
+func (c *Counted) GetBlock(ctx context.Context, id cid.Cid) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return c.db.Get(getDataKey(id))
+}
+
+func (c *Counted) GetBlockSize(ctx context.Context, id cid.Cid) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.db.GetSize(getDataKey(id))
+}
+
+type ckiter struct {
+	rs  query.Results
+	err error
+}
+
+func (c *ckiter) NextCid() (cid.Cid, error) {
+	if c.err != nil {
+		return cid.Undef, c.err
+	}
+	r, more := c.rs.NextSync()
+	if r.Error != nil {
+		return cid.Undef, r.Error
+	}
+	if !more {
+		c.err = io.EOF // will return EOF on the next call
+	}
+	return dataKeyToCid(r.Key) //should never error here since that is filtered
+}
+
+func (c *ckiter) Filter(e query.Entry) bool {
+	if !strings.HasSuffix(e.Key, dataSuffixKey.String()) {
+		return false
+	}
+	_, err := dataKeyToCid(e.Key)
+	return err == nil
+}
+
+func (c *ckiter) Close() error {
+	return c.rs.Close()
+}
+
+func (c *Counted) KeysIterator(prefix string) CidIterator {
+	it := &ckiter{}
+	it.rs, it.err = c.db.Query(query.Query{
+		Filters:  []query.Filter{it},
+		KeysOnly: true,
+	})
+	return it
 }

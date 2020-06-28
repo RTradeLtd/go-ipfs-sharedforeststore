@@ -17,16 +17,19 @@ type BlockGetter interface {
 }
 
 type CidIterator interface {
-	ReadCids(ctx context.Context, max int) ([]cid.Cid, error)
+	//NextCid returns the next cid or io.EOF if the end is reached
+	NextCid() (cid.Cid, error)
+	//Close releases the resources used by this iterator for early exist
+	Close() error
 }
 
 //ReadStore is the base interface for CounterStore and TaggedStore
 type ReadStore interface {
 	BlockGetter
 	//GetSize is equivalent to Blockstore.GetSize
-	GetSize(context.Context, cid.Cid) (int, error)
+	GetBlockSize(context.Context, cid.Cid) (int, error)
 	//KeysIterator replaces Blockstore.AllKeysChan.
-	KeysIterator() CidIterator
+	KeysIterator(prefix string) CidIterator
 }
 
 //CounterStore is a recursively counted BlockStore.
@@ -90,5 +93,5 @@ type TaggedCounterStore interface {
 }
 
 //LinkDecoderFunc is a function that decodes a raw data according to cid to
-//return dependent cids.
+//return linked cids.
 type LinkDecoderFunc func(cid.Cid, []byte) ([]cid.Cid, error)
