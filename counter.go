@@ -21,7 +21,6 @@ type Counted struct {
 }
 
 //CountedTx is a CounterStore where all actions are group in to a single transaction.
-//
 type CountedTx struct {
 	context.Context
 	tx datastore.Txn
@@ -216,6 +215,9 @@ func (c *ckiter) Filter(e query.Entry) bool {
 }
 
 func (c *ckiter) Close() error {
+	if c.rs == nil {
+		return c.err
+	}
 	return c.rs.Close()
 }
 
