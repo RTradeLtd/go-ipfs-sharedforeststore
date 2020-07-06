@@ -1,5 +1,7 @@
 # Shared Forest Store
 
+A high level content store for IPFS.
+
 ## Problem Statement
 
 ### The block datastore garbage collection problem
@@ -8,7 +10,7 @@ The default IPFS implementation uses pinning to keep track of what data to keep.
 
 ### Initial Solution: pinning by reference counting
 
-@bonedaddy implemented a [much faster](https://medium.com/temporal-cloud/temporalx-vs-go-ipfs-official-node-benchmarks-8457037a77cf) alternative to pinning by counting the number of puts and deletes over a `Blockstore` interface.
+[postables](https://github.com/bonedaddy) implemented a [much faster](https://medium.com/temporal-cloud/temporalx-vs-go-ipfs-official-node-benchmarks-8457037a77cf) alternative to pinning by counting the number of puts and deletes over a `Blockstore` interface.s
 
 Although that solution largely alleviated the slowdown, it exposed a few problems with the approach:
 
@@ -29,6 +31,23 @@ Both pinning metadata and block store operations are grouped into a single trans
 
 #### Tagging is for Sharing
 
+Tagging can be considered a keyed counter store, where each add is associated with a unique key. This not only offers idempotent operations, but by protecting the keys, users can share a single duplicating data store. For example, users could prefix their tags with a hash of the user's private key. By keeping this hash private, users can not delete each other's contents without any additional server side content protection logic.
+
 #### Counting is for Speed
 
+Where the additional features offered by tagging is unnicecery, counting is both faster and easier to use.
+
+The `CounterStore` interface is primarily designed to aid in the transition from our internal counter store to this code base.
+
+Counting is also an optional implementation for the internal references of a `TagStore`. Counting uses less metadata to keep track of internal references, while tagging offers more debugging keepabilities and quick reverse look up of why each block is needed.
+
 #### Choose Between Single Transaction or Progressive
+
+This content store library offers two transactional options when adding contents.
+
+- Single Transaction: where blocks of an IPLD graph are either all saved or none at all.
+- Progressive: where partial uploads are saved.
+
+Single transaction is better for locally availed content and cases where partial adds can't be managed.
+
+Progressive upload allows splitting the commit of an add operation into committing of individual blocks and accousated metadata. The progress of an add can also be reported.

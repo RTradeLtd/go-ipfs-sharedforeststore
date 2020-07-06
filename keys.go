@@ -2,26 +2,27 @@ package sharedforeststore
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
-	"github.com/multiformats/go-base32"
 	"github.com/pkg/errors"
 )
 
 //newKeyFromCid creates a new key from a cid with suffixes.
 //The encoding picked is the same as NewKeyFromBinary in go-ipfs-ds-help.
 func newKeyFromCid(id cid.Cid, suffixKeys ...datastore.Key) datastore.Key {
-	encoding := base32.RawStdEncoding
-	keyLen := 1 + encoding.EncodedLen(id.ByteLen())
+	encoding := base64.URLEncoding
+	keyLen := 2 + encoding.EncodedLen(id.ByteLen())
 	for _, k := range suffixKeys {
 		keyLen += len(k.String())
 	}
-	b := make([]byte, 1, keyLen)
+	b := make([]byte, 2, keyLen)
 	b[0] = '/'
+	b[1] = 85 //id for base64.URLEncoding
 	buf := bytes.NewBuffer(b)
-	encoder := base32.NewEncoder(encoding, buf)
+	encoder := base64.NewEncoder(encoding, buf)
 	if _, err := id.WriteBytes(encoder); err != nil {
 		panic(err) // error here should be impossible
 	}

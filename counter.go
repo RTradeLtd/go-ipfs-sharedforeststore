@@ -202,6 +202,9 @@ func (c *ckiter) NextCid() (cid.Cid, error) {
 	}
 	if !more {
 		c.err = io.EOF // will return EOF on the next call
+		if r.Key == "" {
+			return cid.Undef, c.err
+		}
 	}
 	return dataKeyToCid(r.Key) //should never error here since that is filtered
 }
