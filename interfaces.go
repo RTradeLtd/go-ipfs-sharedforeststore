@@ -79,10 +79,13 @@ type CounterStore interface {
 //The tag can also be used for debugging and easily finding out who pinned which file.
 type TaggedStore interface {
 	ReadStore
-	SetTag(context.Context, datastore.Key, cid.Cid, BlockGetter) error
+	//PutTag adds a tag to contents referenced by the given cid
+	PutTag(context.Context, datastore.Key, cid.Cid, BlockGetter) error
 	//GetBlockTagged is the tagged version of GetBlock
 	GetBlockTagged(context.Context, cid.Cid, datastore.Key) ([]byte, error)
+	//GetTags list tags on the cid, for administrative and debugging.
 	GetTags(context.Context, cid.Cid) ([]datastore.Key, error)
+	//RemoveTag removes a tag set on the cid, the contents are also removed if there are no tags left
 	RemoveTag(context.Context, datastore.Key, cid.Cid) error
 }
 
