@@ -2,6 +2,7 @@ package sharedforeststore
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -61,14 +62,15 @@ func BenchmarkPutTag(b *testing.B) {
 	}
 }
 
-func BenchmarkPutTag_P6(b *testing.B) {
-	p := 6 //only up to len(cids) is supported
+func BenchmarkPutTag_P8(b *testing.B) {
+	p := 8
 	cids, getter := setup(b)
 	db, err := leveldb.NewDatastore("", nil)
 	fatalIfErr(b, err)
 	store := NewTagCountedStore(db, nil)
 	ctx := context.Background()
 	tag := datastore.NewKey("tag")
+	id := cids[1]
 	wg := sync.WaitGroup{}
 	wg.Add(p)
 	b.ResetTimer()
@@ -77,7 +79,6 @@ func BenchmarkPutTag_P6(b *testing.B) {
 	for i := p; i > 0; i-- {
 		n := bn / i
 		bn -= n
-		id := cids[i-1]
 		go func() {
 			defer wg.Done()
 			for i := 0; i < n; i++ {
@@ -101,4 +102,31 @@ func BenchmarkPutRemoveTag(b *testing.B) {
 		fatalIfErr(b, store.PutTag(ctx, id, tag, getter))
 		fatalIfErr(b, store.RemoveTag(ctx, id, tag))
 	}
+}
+
+func BenchmarkPutRemoveTag_P8(b *testing.B) {
+	p := 8
+	cids, getter := setup(b)
+	db, err := leveldb.NewDatastore("", nil)
+	fatalIfErr(b, err)
+	store := NewTagCountedStore(db, nil)
+	ctx := context.Background()
+	id := cids[1]
+	wg := sync.WaitGroup{}
+	wg.Add(p)
+	b.ResetTimer()
+	bn := b.N
+	for i := p; i > 0; i-- {
+		n := bn / i
+		bn -= n
+		tag := datastore.NewKey(fmt.Sprint(i))
+		go func() {
+			defer wg.Done()
+			for i := 0; i < n; i++ {
+				fatalIfErr(b, store.PutTag(ctx, id, tag, getter))
+				fatalIfErr(b, store.RemoveTag(ctx, id, tag))
+			}
+		}()
+	}
+	wg.Wait()
 }
