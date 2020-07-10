@@ -17,17 +17,17 @@ type DatabaseOptions struct {
 
 type Counted struct {
 	opt DatabaseOptions
-	db  datastore.TxnDatastore
+	ds  datastore.TxnDatastore
 }
 
-//CountedTx is a CounterStore where all actions are group in to a single transaction.
-type CountedTx struct {
+//Tx is a datastore transaction where all actions are group in to a single transaction.
+type Tx struct {
 	context.Context
-	tx datastore.Txn
+	transaction datastore.Txn
 }
 
 //NewCountedStore creates a new Counted (implements CounterStore) from a transactional datastore.
-func NewCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *Counted {
+func NewCountedStore(ds datastore.TxnDatastore, opt *DatabaseOptions) *Counted {
 	if opt == nil {
 		opt = &DatabaseOptions{}
 	}
@@ -36,69 +36,69 @@ func NewCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *Counted {
 	}
 	return &Counted{
 		opt: *opt,
-		db:  db,
+		ds:  ds,
 	}
 }
 
-func (c *Counted) NewTransaction(ctx context.Context) (*CountedTx, error) {
+func (c *Counted) NewTransaction(ctx context.Context) (*Tx, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	tx, err := c.db.NewTransaction(false)
-	return &CountedTx{
-		Context: ctx,
-		tx:      tx,
+	tx, err := c.ds.NewTransaction(false)
+	return &Tx{
+		Context:     ctx,
+		transaction: tx,
 	}, err
 }
 
 //TxWarp handles recourse management and commit retry for a transaction
-func (c *Counted) TxWarp(ctx context.Context, f func(tx *CountedTx) error) error {
+func (c *Counted) TxWarp(ctx context.Context, f func(tx *Tx) error) error {
 	tx, err := c.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.tx.Discard()
+	defer tx.transaction.Discard()
 	var commitError error
 	for {
 		if err := f(tx); err != nil {
 			return multierr.Combine(err, commitError)
 		}
-		if commitError = tx.tx.Commit(); commitError == nil {
+		if commitError = tx.transaction.Commit(); commitError == nil {
 			return nil
 		}
-		if err := tx.Reset(c.db); err != nil {
+		if err := tx.Reset(c.ds); err != nil {
 			return multierr.Combine(err, commitError)
 		}
 	}
 }
 
-func (c *CountedTx) Reset(db datastore.TxnDatastore) (err error) {
+func (c *Tx) Reset(db datastore.TxnDatastore) (err error) {
 	if err := c.Err(); err != nil {
 		return err
 	}
-	c.tx.Discard()
-	c.tx, err = db.NewTransaction(false)
+	c.transaction.Discard()
+	c.transaction, err = db.NewTransaction(false)
 	return err
 }
 
 func (c *Counted) Increment(ctx context.Context, id cid.Cid, bg BlockGetter) (count int64, err error) {
-	err = c.TxWarp(ctx, func(tx *CountedTx) error {
+	err = c.TxWarp(ctx, func(tx *Tx) error {
 		count, err = tx.Increment(id, bg, c.opt.LinkDecoder)
 		return err
 	})
 	return
 }
 
-func (c *CountedTx) Increment(id cid.Cid, bg BlockGetter, ld LinkDecoderFunc) (int64, error) {
+func (c *Tx) Increment(id cid.Cid, bg BlockGetter, ld LinkDecoderFunc) (int64, error) {
 	if err := c.Err(); err != nil {
 		return 0, err
 	}
-	count, key, err := getCount(c.tx, id)
+	count, key, err := getCount(c.transaction, id)
 	if err != nil {
 		return 0, err
 	}
 	count++
-	if err := setCount(c.tx, count, key); err != nil {
+	if err := setCount(c.transaction, count, key); err != nil {
 		return 0, err
 	}
 	if count > 1 {
@@ -108,7 +108,7 @@ func (c *CountedTx) Increment(id cid.Cid, bg BlockGetter, ld LinkDecoderFunc) (i
 	if err != nil {
 		return 0, err
 	}
-	if err := setData(c.tx, id, data); err != nil {
+	if err := setData(c.transaction, id, data); err != nil {
 		return 0, err
 	}
 	cids, err := ld(id, data)
@@ -127,23 +127,23 @@ func (c *Counted) GetCount(ctx context.Context, id cid.Cid) (count int64, err er
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
-	count, _, err = getCount(c.db, id)
+	count, _, err = getCount(c.ds, id)
 	return count, err
 }
 
 func (c *Counted) Decrement(ctx context.Context, id cid.Cid) (count int64, err error) {
-	err = c.TxWarp(ctx, func(tx *CountedTx) error {
+	err = c.TxWarp(ctx, func(tx *Tx) error {
 		count, err = tx.Decrement(id, c.opt.LinkDecoder)
 		return err
 	})
 	return
 }
 
-func (c *CountedTx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
+func (c *Tx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 	if err := c.Err(); err != nil {
 		return 0, err
 	}
-	count, key, err := getCount(c.tx, id)
+	count, key, err := getCount(c.transaction, id)
 	if err != nil {
 		return 0, err
 	}
@@ -151,13 +151,13 @@ func (c *CountedTx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 	if count < 0 {
 		return count, nil
 	}
-	if err := setCount(c.tx, count, key); err != nil {
+	if err := setCount(c.transaction, count, key); err != nil {
 		return 0, err
 	}
 	if count > 0 {
 		return count, nil
 	}
-	data, err := deleteData(c.tx, id)
+	data, err := deleteData(c.transaction, id)
 	if err != nil {
 		return 0, err
 	}
@@ -177,14 +177,14 @@ func (c *Counted) GetBlock(ctx context.Context, id cid.Cid) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return c.db.Get(getDataKey(id))
+	return c.ds.Get(getDataKey(id))
 }
 
 func (c *Counted) GetBlockSize(ctx context.Context, id cid.Cid) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
-	return c.db.GetSize(getDataKey(id))
+	return c.ds.GetSize(getDataKey(id))
 }
 
 type ckiter struct {
@@ -226,7 +226,7 @@ func (c *ckiter) Close() error {
 
 func (c *Counted) KeysIterator(prefix string) CidIterator {
 	it := &ckiter{}
-	it.rs, it.err = c.db.Query(query.Query{
+	it.rs, it.err = c.ds.Query(query.Query{
 		Filters:  []query.Filter{it},
 		KeysOnly: true,
 	})
