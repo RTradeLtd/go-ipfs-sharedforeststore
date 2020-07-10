@@ -2,13 +2,14 @@ package sharedforeststore
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/ipfs/go-datastore"
 	leveldb "github.com/ipfs/go-ds-leveldb"
 )
 
-func TestTafCounter(t *testing.T) {
+func TestTagCounter(t *testing.T) {
 	type testCase struct {
 		node   int
 		tag    string
@@ -44,4 +45,60 @@ func TestTafCounter(t *testing.T) {
 	checkCounts(t, ctx, make([]int64, len(cids)), cids, store)
 	//no blocks from store should be left
 	checkFullStoreByIterator(t, ctx, nil, store)
+}
+
+func BenchmarkPutTag(b *testing.B) {
+	cids, getter := setup(b)
+	db, err := leveldb.NewDatastore("", nil)
+	fatalIfErr(b, err)
+	store := NewTagCountedStore(db, nil)
+	ctx := context.Background()
+	id := cids[1]
+	tag := datastore.NewKey("tag")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fatalIfErr(b, store.PutTag(ctx, id, tag, getter))
+	}
+}
+
+func BenchmarkPutTag_P6(b *testing.B) {
+	p := 6 //only up to len(cids) is supported
+	cids, getter := setup(b)
+	db, err := leveldb.NewDatastore("", nil)
+	fatalIfErr(b, err)
+	store := NewTagCountedStore(db, nil)
+	ctx := context.Background()
+	tag := datastore.NewKey("tag")
+	wg := sync.WaitGroup{}
+	wg.Add(p)
+	b.ResetTimer()
+	//start p go-rountines
+	bn := b.N
+	for i := p; i > 0; i-- {
+		n := bn / i
+		bn -= n
+		id := cids[i-1]
+		go func() {
+			defer wg.Done()
+			for i := 0; i < n; i++ {
+				fatalIfErr(b, store.PutTag(ctx, id, tag, getter))
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func BenchmarkPutRemoveTag(b *testing.B) {
+	cids, getter := setup(b)
+	db, err := leveldb.NewDatastore("", nil)
+	fatalIfErr(b, err)
+	store := NewTagCountedStore(db, nil)
+	ctx := context.Background()
+	id := cids[1]
+	tag := datastore.NewKey("tag")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fatalIfErr(b, store.PutTag(ctx, id, tag, getter))
+		fatalIfErr(b, store.RemoveTag(ctx, id, tag))
+	}
 }
