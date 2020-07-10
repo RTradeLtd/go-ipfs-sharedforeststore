@@ -22,7 +22,7 @@ import (
 //      \ //
 //       F
 //
-//Where A links to D, B has a demined dependency on F, and E has a repeated link to F
+//Where A links to D, B has a diamond dependency on F, and E has a repeated link to F
 func setup(t testing.TB) ([]cid.Cid, BlockGetter) {
 	testString := "Hello World!"
 	f, err := merkledag.NewRawNodeWPrefix([]byte(testString), cidBuilder)
