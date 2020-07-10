@@ -23,8 +23,6 @@ Shared Forest Store offers a collection of high level, idempotent, content store
 
 ### Technical Design
 
-This design is not yet fully implemented.
-
 #### Transactional Data Store
 
 Both pinning metadata and block store operations are grouped into a single transaction. This offers true concurrency without locking and the database will never be in an inconsistent state. Any failed transition commits are retried automatically until either success or context cancellation.
@@ -35,13 +33,15 @@ Tagging can be considered a keyed counter store, where each add is associated wi
 
 #### Counting is for Speed
 
-Where the additional features offered by tagging is unnicecery, counting is both faster and easier to use.
+Where the additional features offered by tagging is unnecessary, counting is both faster and easier to use.
 
 The `CounterStore` interface is primarily designed to aid in the transition from our internal counter store to this code base.
 
 Counting is also an optional implementation for the internal references of a `TagStore`. Counting uses less metadata to keep track of internal references, while tagging offers more debugging keepabilities and quick reverse look up of why each block is needed.
 
 #### Choose Between Single Transaction or Progressive
+
+(Progressive is not yet implemented)
 
 This content store library offers two transactional options when adding contents.
 

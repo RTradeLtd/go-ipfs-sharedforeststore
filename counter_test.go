@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/ipfs/go-cid"
 	leveldb "github.com/ipfs/go-ds-leveldb"
 )
 
@@ -15,10 +16,10 @@ func TestCounter(t *testing.T) {
 	}
 
 	cases := []testCase{
-		testCase{node: 0, counts: []int64{1, 0, 0, 1, 0, 1}},
-		testCase{node: 1, counts: []int64{1, 1, 0, 2, 1, 3}},
-		testCase{node: 2, counts: []int64{1, 1, 1, 2, 2, 3}},
-		testCase{node: 3, counts: []int64{1, 1, 1, 3, 2, 3}},
+		{node: 0, counts: []int64{1, 0, 0, 1, 0, 1}},
+		{node: 1, counts: []int64{1, 1, 0, 2, 1, 3}},
+		{node: 2, counts: []int64{1, 1, 1, 2, 2, 3}},
+		{node: 3, counts: []int64{1, 1, 1, 3, 2, 3}},
 	}
 
 	cids, getter := setup(t)
@@ -33,31 +34,10 @@ func TestCounter(t *testing.T) {
 		if count != c.counts[c.node] {
 			t.Fatalf("count %v != %v", count, c.counts[c.node])
 		}
-
-		for i, expCount := range c.counts {
-			gotCount, err := store.GetCount(ctx, cids[i])
-			fatalIfErr(t, err)
-			if expCount != gotCount {
-				t.Errorf("case %v got count %v for index %v expected %v", c, gotCount, i, expCount)
-			}
-		}
+		checkCounts(t, ctx, c.counts, cids, store)
 	}
 
-	it := store.KeysIterator("")
-	storeSize := 0
-	for {
-		_, err := it.NextCid()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		storeSize++
-	}
-	if storeSize != len(cids) {
-		t.Fatalf("KeysIterator expected %v items, but got %v items", len(cids), storeSize)
-	}
+	checkFullStoreByIterator(t, ctx, cids, store)
 
 	for _, c := range cases {
 		count, err := store.Decrement(ctx, cids[c.node])
@@ -65,5 +45,39 @@ func TestCounter(t *testing.T) {
 		if count != 0 {
 			t.Fatalf("count should be 0 after decrement, but got %v", count)
 		}
+	}
+}
+
+func checkCounts(t testing.TB, ctx context.Context, exp []int64, cids []cid.Cid, store CounterStore) {
+	for i, expCount := range exp {
+		gotCount, err := store.GetCount(ctx, cids[i])
+		fatalIfErr(t, err)
+		if expCount != gotCount {
+			t.Errorf("got count %v for index %v expected %v", gotCount, i, expCount)
+		}
+	}
+}
+
+func checkFullStoreByIterator(t testing.TB, ctx context.Context, cids []cid.Cid, store CounterStore) {
+	it := store.KeysIterator("")
+	expects := cid.NewSet()
+	for _, id := range cids {
+		expects.Add(id)
+	}
+	for {
+		id, err := it.NextCid()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !expects.Has(id) {
+			t.Fatalf("unexpected cid %v found", id)
+		}
+		expects.Remove(id)
+	}
+	if expects.Len() != 0 {
+		t.Fatalf("missed cids from iteration: %v", expects.Keys())
 	}
 }

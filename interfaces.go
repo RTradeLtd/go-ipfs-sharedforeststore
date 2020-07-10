@@ -80,13 +80,15 @@ type CounterStore interface {
 type TaggedStore interface {
 	ReadStore
 	//PutTag adds a tag to contents referenced by the given cid
-	PutTag(context.Context, datastore.Key, cid.Cid, BlockGetter) error
-	//GetBlockTagged is the tagged version of GetBlock
-	GetBlockTagged(context.Context, cid.Cid, datastore.Key) ([]byte, error)
+	PutTag(context.Context, cid.Cid, datastore.Key, BlockGetter) error
+	//HasBlockTagged is the tagged version of GetCount
+	HasBlockTagged(context.Context, cid.Cid, datastore.Key) (bool, error)
 	//GetTags list tags on the cid, for administrative and debugging.
+	//This function should be hidden from public facing APIs to make tags secret.
 	GetTags(context.Context, cid.Cid) ([]datastore.Key, error)
-	//RemoveTag removes a tag set on the cid, the contents are also removed if there are no tags left
-	RemoveTag(context.Context, datastore.Key, cid.Cid) error
+	//RemoveTag removes a tag set on the cid, the contents are also removed
+	//if there are no tags left.
+	RemoveTag(context.Context, cid.Cid, datastore.Key) error
 }
 
 //TaggedCounterStore combines the features of both TaggedStore and CounterStore.
