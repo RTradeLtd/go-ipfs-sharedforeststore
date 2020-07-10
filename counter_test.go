@@ -10,11 +10,12 @@ import (
 )
 
 func TestCounter(t *testing.T) {
+	t.Parallel()
+
 	type testCase struct {
 		node   int
 		counts []int64
 	}
-
 	cases := []testCase{
 		{node: 0, counts: []int64{1, 0, 0, 1, 0, 1}},
 		{node: 1, counts: []int64{1, 1, 0, 2, 1, 3}},

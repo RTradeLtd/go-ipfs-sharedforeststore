@@ -11,12 +11,13 @@ import (
 )
 
 func TestTagCounter(t *testing.T) {
+	t.Parallel()
+
 	type testCase struct {
 		node   int
 		tag    string
 		counts []int64
 	}
-
 	cases := []testCase{
 		{node: 0, tag: "A", counts: []int64{1, 0, 0, 1, 0, 1}},
 		{node: 1, tag: "A", counts: []int64{1, 1, 0, 2, 1, 3}},
