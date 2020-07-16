@@ -48,6 +48,6 @@ This content store library offers two transactional options when adding contents
 - Single Transaction: where blocks of an IPLD graph are either all saved or none at all.
 - Progressive: where partial uploads are saved.
 
-Single transaction is better for locally availed content and cases where partial adds can't be managed.
+Single transaction is better for locally available content and cases where partial adds can't be managed.
 
-Progressive upload allows splitting the commit of an add operation into committing of individual blocks and accousated metadata. The progress of an add can also be reported.
+Progressive upload allows splitting the commit of an add operation into committing of individual blocks and associated metadata. The progress of an add can also be reported.
