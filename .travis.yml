@@ -1,11 +1,12 @@
 language: go
 
 go:
-  - 1.13.x
+  - 1.14.x
 
 env:
   global:
     - GO111MODULE=on
+    - CODECOV_TOKEN="731a6a57-9ac6-43eb-8388-1dfb71308dd4"
 
 install:
 - go get honnef.co/go/tools/cmd/staticcheck
