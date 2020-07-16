@@ -45,13 +45,16 @@ func (c *Counted) NewTransaction(ctx context.Context) (*Tx, error) {
 		return nil, err
 	}
 	tx, err := c.ds.NewTransaction(false)
+	if err != nil {
+		return nil, err
+	}
 	return &Tx{
 		Context:     ctx,
 		transaction: tx,
 	}, err
 }
 
-//TxWarp handles recourse management and commit retry for a transaction
+//TxWarp handles resource management and commit retry for a transaction
 func (c *Counted) TxWarp(ctx context.Context, f func(tx *Tx) error) error {
 	tx, err := c.NewTransaction(ctx)
 	if err != nil {
