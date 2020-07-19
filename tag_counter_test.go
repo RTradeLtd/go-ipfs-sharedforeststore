@@ -75,7 +75,7 @@ func BenchmarkPutTag_P8(b *testing.B) {
 	wg := sync.WaitGroup{}
 	wg.Add(p)
 	b.ResetTimer()
-	//start p go-rountines
+	//start p go-routines
 	bn := b.N
 	for i := p; i > 0; i-- {
 		n := bn / i
