@@ -50,29 +50,62 @@ func getCounterKey(id cid.Cid) counterKey {
 	return counterKey(newKeyFromCid(id, counterSuffixKey))
 }
 
-func getCount(db datastore.Read, id cid.Cid) (int64, counterKey, error) {
+type metadata struct {
+	Complete bool
+	HavePart bool
+}
+
+func decodeCounter(bs []byte) (int64, metadata, error) {
+	c, size := binary.Uvarint(bs)
+	count := int64(c)
+	if count <= 0 {
+		return 0, metadata{}, errors.Errorf("corrupted metadata error: count less than 1, from raw `%x`", bs)
+	}
+	switch len(bs) {
+	case size:
+		return count, metadata{Complete: true, HavePart: true}, nil
+	case size + 1:
+		if bs[size] > 1 {
+			return 0, metadata{}, errors.Errorf("corrupted metadata error: meta > 1, from raw `%x`", bs)
+		}
+		return count, metadata{Complete: false, HavePart: bs[size] == 1}, nil
+	default:
+		return 0, metadata{}, errors.Errorf("corrupted metadata error: length too long, from raw `%x`", bs)
+	}
+}
+
+func (m metadata) encodeWithCount(c int64) []byte {
+	padding := 0
+	if !m.Complete {
+		padding = 1
+	}
+	buf := make([]byte, binary.MaxVarintLen64+padding)
+	n := binary.PutUvarint(buf, uint64(c))
+	if m.HavePart && !m.Complete {
+		buf[n] = 1
+	}
+	return buf[:n+padding]
+}
+
+func getCount(db datastore.Read, id cid.Cid) (int64, metadata, counterKey, error) {
 	key := getCounterKey(id)
 	v, err := db.Get(datastore.Key(key))
 	if err == datastore.ErrNotFound {
-		return 0, key, nil
+		return 0, metadata{}, key, nil
 	}
-	count, size := binary.Uvarint(v)
-	if size != len(v) || count == 0 {
-		return 0, key, errors.Errorf("corrupted metadata error: expected binary.Uvarint, but got `%x`", v)
-	}
-	return int64(count), key, nil
+	count, meta, err := decodeCounter(v)
+	return count, meta, key, err
 }
 
-func setCount(db datastore.Write, v int64, k0 counterKey) error {
+func setCount(db datastore.Write, k0 counterKey, v int64, meta metadata) error {
 	k := datastore.Key(k0)
 	if v == 0 {
 		return db.Delete(k)
-	} else if v < 0 {
+	}
+	if v < 0 {
 		return errors.Errorf("can not set a count of less than 0 for key:%v, count:%v", k, v)
 	}
-	buf := make([]byte, binary.MaxVarintLen64)
-	n := binary.PutUvarint(buf, uint64(v))
-	return db.Put(k, buf[:n])
+	return db.Put(k, meta.encodeWithCount(v))
 }
 
 var dataSuffixKey = datastore.NewKey("/d")

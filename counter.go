@@ -96,22 +96,28 @@ func (c *Tx) Increment(id cid.Cid, bg BlockGetter, ld LinkDecoderFunc) (int64, e
 	if err := c.Err(); err != nil {
 		return 0, err
 	}
-	count, key, err := getCount(c.transaction, id)
+	count, meta, key, err := getCount(c.transaction, id)
 	if err != nil {
 		return 0, err
 	}
 	count++
-	if err := setCount(c.transaction, count, key); err != nil {
+	if err := setCount(c.transaction, key, count, metadata{Complete: true}); err != nil {
 		return 0, err
 	}
-	if count > 1 {
+	if count > 1 && meta.Complete {
 		return count, nil
 	}
-	data, err := bg.GetBlock(c, id)
-	if err != nil {
-		return 0, err
+	var data []byte
+	if !meta.HavePart {
+		data, err = bg.GetBlock(c, id)
+		if err != nil {
+			return 0, err
+		}
+		err = setData(c.transaction, id, data)
+	} else {
+		data, err = c.transaction.Get(getDataKey(id))
 	}
-	if err := setData(c.transaction, id, data); err != nil {
+	if err != nil {
 		return 0, err
 	}
 	cids, err := ld(id, data)
@@ -130,7 +136,10 @@ func (c *Counted) GetCount(ctx context.Context, id cid.Cid) (count int64, err er
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
-	count, _, err = getCount(c.ds, id)
+	count, meta, _, err := getCount(c.ds, id)
+	if !meta.Complete {
+		return 0, err
+	}
 	return count, err
 }
 
@@ -146,7 +155,7 @@ func (c *Tx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 	if err := c.Err(); err != nil {
 		return 0, err
 	}
-	count, key, err := getCount(c.transaction, id)
+	count, meta, key, err := getCount(c.transaction, id)
 	if err != nil {
 		return 0, err
 	}
@@ -154,8 +163,11 @@ func (c *Tx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 	if count < 0 {
 		return count, nil
 	}
-	if err := setCount(c.transaction, count, key); err != nil {
+	if err := setCount(c.transaction, key, count, meta); err != nil {
 		return 0, err
+	}
+	if !meta.HavePart {
+		return 0, nil
 	}
 	if count > 0 {
 		return count, nil

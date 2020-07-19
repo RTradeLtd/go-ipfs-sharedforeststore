@@ -16,6 +16,11 @@ type BlockGetter interface {
 	GetBlock(context.Context, cid.Cid) ([]byte, error)
 }
 
+//LinkDecoderFunc is a function that decodes a raw data according to cid to
+//return linked cids.
+type LinkDecoderFunc func(cid.Cid, []byte) ([]cid.Cid, error)
+
+//CidIterator is an iterator of cids.
 type CidIterator interface {
 	//NextCid returns the next cid or io.EOF if the end is reached
 	NextCid() (cid.Cid, error)
@@ -97,6 +102,52 @@ type TaggedCounterStore interface {
 	CounterStore
 }
 
-//LinkDecoderFunc is a function that decodes a raw data according to cid to
-//return linked cids.
-type LinkDecoderFunc func(cid.Cid, []byte) ([]cid.Cid, error)
+// Progress reports progress for one cid's dependents.
+// Have* ÷ Known* is an estimated progress.
+// Without the KnownAll* flag, the Have* values are pessimistic as more existing dependents could
+// already exist, while the Known* values are optimistic as that value could increase.
+type Progress struct {
+	//HaveBlocks is the number of blocks save in the store that we know is a dependent.
+	HaveBlocks int64
+	//KnownBlocks is the number of blocks we can currently count,
+	//this number can increase as we see more blocks with links.
+	KnownBlocks int64
+	//KnownAllBlocks is true if KnownBlocks is at max
+	KnownAllBlocks bool
+	//HaveBytes is the bytes version of HaveBlocks
+	HaveBytes int64
+	//KnownBytes is the bytes version of KnownBlocks
+	KnownBytes int64
+	//KnownAllBytes is the bytes version of KnownBlocks, this true when
+	//the data structure reports total size early.
+	KnownAllBytes bool
+}
+
+//ProgressiveCounterStore is a CounterStore that allows partial uploads
+type ProgressiveCounterStore interface {
+	CounterStore
+	//ProgressiveIncrement returns two functions, the actual function to call to run the process, and
+	//a progress reporter to call whenever the progress is desired.
+	ProgressiveIncrement(context.Context, cid.Cid, BlockGetter) (func() (int64, error), func(*Progress) error)
+	//ProgressiveContinue is ProgressiveIncrement without the increment to continue a previous partial ProgressiveIncrement.
+	//It returns an error if count is 0.
+	ProgressiveContinue(context.Context, cid.Cid, BlockGetter) (func() (int64, error), func(*Progress) error)
+	//GetProgress reports the progress for a cid
+	GetProgress(context.Context, cid.Cid, *Progress) error
+}
+
+//ProgressiveTaggedStore is a TaggedStore that allows partial uploads
+type ProgressiveTaggedStore interface {
+	TaggedStore
+	//ProgressivePutTag returns two functions, the actual function to call to run the process, and
+	//a progress reporter to call whenever the progress is desired.
+	ProgressivePutTag(context.Context, cid.Cid, datastore.Key, BlockGetter) (func() error, func(*Progress) error)
+	//GetProgress reports the progress for a cid
+	GetProgress(context.Context, cid.Cid, *Progress) error
+}
+
+//ProgressiveTaggedCounterStore combines the features of both ProgressiveTaggedStore and ProgressiveCounterStore.
+type ProgressiveTaggedCounterStore interface {
+	ProgressiveTaggedStore
+	ProgressiveCounterStore
+}
