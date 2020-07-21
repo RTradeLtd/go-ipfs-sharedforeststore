@@ -136,14 +136,14 @@ func deleteData(db readWriteStore, id cid.Cid) ([]byte, error) {
 
 var tagSuffixKey = datastore.NewKey("/t")
 
-func getTaggedKey(id cid.Cid, tag datastore.Key) datastore.Key {
+func getTagKey(id cid.Cid, tag datastore.Key) datastore.Key {
 	return newKeyFromCid(id, tagSuffixKey, tag)
 }
 
 var internalTagSuffixKey = datastore.NewKey("/i")
 
-func getInternalTaggedKey(id cid.Cid, tag datastore.Key) datastore.Key {
+func getInternalTagKey(id cid.Cid, tag datastore.Key) datastore.Key {
 	return newKeyFromCid(id, internalTagSuffixKey, tag)
 }
 
-var _, _ = getTaggedKey, getInternalTaggedKey //block used warnings during development
+var _ = getInternalTagKey //block used warnings during development

@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/go-datastore"
 )
 
-//ProgressiveTagCounted supports both ProgressiveTaggedStore and ProgressiveCounterStore interfaces.
+//ProgressiveTagCounted supports both ProgressiveTagStore and ProgressiveCounterStore interfaces.
 //It is backed by CounterStore and shares its counters.
 type ProgressiveTagCounted struct {
 	TagCounted

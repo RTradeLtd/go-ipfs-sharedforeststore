@@ -28,7 +28,7 @@ type CidIterator interface {
 	Close() error
 }
 
-//ReadStore is the base interface for CounterStore and TaggedStore
+//ReadStore is the base interface for CounterStore and TagStore
 type ReadStore interface {
 	BlockGetter
 	//GetBlockSize is equivalent to Blockstore.GetSize
@@ -84,10 +84,10 @@ type CounterStore interface {
 //The tag can also be used for debugging and easily finding out who pinned which file.
 type TagStore interface {
 	ReadStore
-	//PutTag adds a tag to contents referenced by the given cid
+	//PutTag adds a tag to contents referenced by the given cid.
 	PutTag(context.Context, cid.Cid, datastore.Key, BlockGetter) error
-	//BlockHasTag is the tagged version of GetCount
-	BlockHasTag(context.Context, cid.Cid, datastore.Key) (bool, error)
+	//HasTag returns if the cid is tagged with a key.
+	HasTag(context.Context, cid.Cid, datastore.Key) (bool, error)
 	//GetTags list tags on the cid, for administrative and debugging.
 	//This function should be hidden from public facing APIs to make tags secret.
 	GetTags(context.Context, cid.Cid) ([]datastore.Key, error)
@@ -96,8 +96,8 @@ type TagStore interface {
 	RemoveTag(context.Context, cid.Cid, datastore.Key) error
 }
 
-//TaggedCounterStore combines the features of both TaggedStore and CounterStore.
-type TaggedCounterStore interface {
+//TagCounterStore combines the features of both TagStore and CounterStore.
+type TagCounterStore interface {
 	TagStore
 	CounterStore
 }
@@ -143,8 +143,8 @@ type ProgressiveCounterStore interface {
 	GetProgressReport(context.Context, cid.Cid, *ProgressReport) error
 }
 
-//ProgressiveTaggedStore is a TaggedStore that allows partial uploads
-type ProgressiveTaggedStore interface {
+//ProgressiveTagStore is a TagStore that allows partial uploads
+type ProgressiveTagStore interface {
 	TagStore
 	//ProgressivePutTag return the ProgressManager for adding a tag, nothing is done until ProgressManager.Run() is called
 	ProgressivePutTag(context.Context, cid.Cid, datastore.Key, BlockGetter) ProgressManager
@@ -152,8 +152,8 @@ type ProgressiveTaggedStore interface {
 	GetProgressReport(context.Context, cid.Cid, *ProgressReport) error
 }
 
-//ProgressiveTaggedCounterStore combines the features of both ProgressiveTaggedStore and ProgressiveCounterStore.
-type ProgressiveTaggedCounterStore interface {
-	ProgressiveTaggedStore
+//ProgressiveTagCounterStore combines the features of both ProgressiveTagStore and ProgressiveCounterStore.
+type ProgressiveTagCounterStore interface {
+	ProgressiveTagStore
 	ProgressiveCounterStore
 }

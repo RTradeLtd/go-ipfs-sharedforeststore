@@ -8,8 +8,8 @@ import (
 	"github.com/ipfs/go-datastore/query"
 )
 
-//TagCounted supports both TaggedStore and CounterStore interfaces.
-//The TaggedStore is backed by CounterStore and shares its counters.
+//TagCounted supports both TagStore and CounterStore interfaces.
+//It is backed by a CounterStore and shares its counters.
 type TagCounted struct {
 	Counted
 }
@@ -24,7 +24,7 @@ func NewTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *TagCou
 
 //txPutTag returns true if a new tag was added
 func txPutTag(tx datastore.Txn, id cid.Cid, tag datastore.Key) (bool, error) {
-	idtag := getTaggedKey(id, tag)
+	idtag := getTagKey(id, tag)
 	_, err := tx.Get(idtag)
 	if err != datastore.ErrNotFound {
 		//tag already added, or some other error occurred
@@ -48,8 +48,8 @@ func (c *TagCounted) PutTag(ctx context.Context, id cid.Cid, tag datastore.Key, 
 	})
 }
 
-func (c *TagCounted) BlockHasTag(ctx context.Context, id cid.Cid, tag datastore.Key) (bool, error) {
-	return c.ds.Has(getTaggedKey(id, tag))
+func (c *TagCounted) HasTag(ctx context.Context, id cid.Cid, tag datastore.Key) (bool, error) {
+	return c.ds.Has(getTagKey(id, tag))
 }
 
 func (c *TagCounted) GetTags(ctx context.Context, id cid.Cid) ([]datastore.Key, error) {
@@ -74,7 +74,7 @@ func (c *TagCounted) GetTags(ctx context.Context, id cid.Cid) ([]datastore.Key, 
 }
 
 func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Key) error {
-	tk := getTaggedKey(id, tag)
+	tk := getTagKey(id, tag)
 	return c.txWarp(ctx, func(tx *Tx) error {
 		has, err := tx.transaction.Has(tk)
 		if err != nil {
