@@ -53,7 +53,7 @@ func (c *TagCounted) HasBlockTagged(ctx context.Context, id cid.Cid, tag datasto
 }
 
 func (c *TagCounted) GetTags(ctx context.Context, id cid.Cid) ([]datastore.Key, error) {
-	prefix := getTaggedKey(id, datastore.NewKey(""))
+	prefix := newKeyFromCid(id, tagSuffixKey)
 	rs, err := c.ds.Query(query.Query{
 		Filters:  []query.Filter{query.FilterKeyPrefix{Prefix: prefix.String()}},
 		KeysOnly: true,

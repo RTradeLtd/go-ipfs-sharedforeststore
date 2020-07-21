@@ -34,7 +34,31 @@ func TestProgressiveTagCounter(t *testing.T) {
 		for _, c := range tagCases {
 			c := c
 			group.Go(func() error {
-				pm := store.ProgressivePutTag(gctx, cids[c.node], datastore.NewKey(c.tag), getter)
+				ctx := gctx
+				pm, _, err := store.ProgressiveIncrement(ctx, cids[c.node], getter)
+				if err != nil {
+					return err
+				}
+				r := ProgressReport{}
+				if err := pm.CopyReport(&r); err != nil {
+					if err != ErrNotImplemented {
+						return err
+					}
+				}
+				if c.tag == "B" {
+					if err := pm.run(); err != nil {
+						return err
+					}
+				}
+				if c.node > 1 {
+					if err := store.ProgressiveContinue(ctx, cids[c.node], getter).Run(); err != nil {
+						return err
+					}
+				}
+				if _, err := store.Decrement(ctx, cids[c.node]); err != nil {
+					return err
+				}
+				pm = store.ProgressivePutTag(ctx, cids[c.node], datastore.NewKey(c.tag), getter)
 				return pm.Run()
 			})
 		}
