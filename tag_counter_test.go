@@ -140,7 +140,7 @@ func BenchmarkPutRemoveTag_P8(b *testing.B) {
 	wg.Wait()
 }
 
-func checkTags(t testing.TB, ctx context.Context, id cid.Cid, tags []string, store TaggedStore) {
+func checkTags(t testing.TB, ctx context.Context, id cid.Cid, tags []string, store TagStore) {
 	gotTags, err := store.GetTags(ctx, id)
 	fatalIfErr(t, err)
 	if len(gotTags) != len(tags) {

@@ -31,7 +31,7 @@ type CidIterator interface {
 //ReadStore is the base interface for CounterStore and TaggedStore
 type ReadStore interface {
 	BlockGetter
-	//GetSize is equivalent to Blockstore.GetSize
+	//GetBlockSize is equivalent to Blockstore.GetSize
 	GetBlockSize(context.Context, cid.Cid) (int, error)
 	//KeysIterator replaces Blockstore.AllKeysChan.
 	KeysIterator(prefix string) CidIterator
@@ -78,16 +78,16 @@ type CounterStore interface {
 	Increment(context.Context, cid.Cid, BlockGetter) (int64, error)
 }
 
-//TaggedStore is an extension of CounterStore where the count is replaced by a set of tags.
+//TagStore is an extension of CounterStore where the count is replaced by a set of tags.
 //At the cost of increased metadata size, this allows each operation to be idempotent,
 // and there for safe to user over an undependable network connection.
 //The tag can also be used for debugging and easily finding out who pinned which file.
-type TaggedStore interface {
+type TagStore interface {
 	ReadStore
 	//PutTag adds a tag to contents referenced by the given cid
 	PutTag(context.Context, cid.Cid, datastore.Key, BlockGetter) error
-	//HasBlockTagged is the tagged version of GetCount
-	HasBlockTagged(context.Context, cid.Cid, datastore.Key) (bool, error)
+	//BlockHasTag is the tagged version of GetCount
+	BlockHasTag(context.Context, cid.Cid, datastore.Key) (bool, error)
 	//GetTags list tags on the cid, for administrative and debugging.
 	//This function should be hidden from public facing APIs to make tags secret.
 	GetTags(context.Context, cid.Cid) ([]datastore.Key, error)
@@ -98,7 +98,7 @@ type TaggedStore interface {
 
 //TaggedCounterStore combines the features of both TaggedStore and CounterStore.
 type TaggedCounterStore interface {
-	TaggedStore
+	TagStore
 	CounterStore
 }
 
@@ -145,7 +145,7 @@ type ProgressiveCounterStore interface {
 
 //ProgressiveTaggedStore is a TaggedStore that allows partial uploads
 type ProgressiveTaggedStore interface {
-	TaggedStore
+	TagStore
 	//ProgressivePutTag return the ProgressManager for adding a tag, nothing is done until ProgressManager.Run() is called
 	ProgressivePutTag(context.Context, cid.Cid, datastore.Key, BlockGetter) ProgressManager
 	//GetProgressReport reports the progress for a cid

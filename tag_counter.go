@@ -48,7 +48,7 @@ func (c *TagCounted) PutTag(ctx context.Context, id cid.Cid, tag datastore.Key, 
 	})
 }
 
-func (c *TagCounted) HasBlockTagged(ctx context.Context, id cid.Cid, tag datastore.Key) (bool, error) {
+func (c *TagCounted) BlockHasTag(ctx context.Context, id cid.Cid, tag datastore.Key) (bool, error) {
 	return c.ds.Has(getTaggedKey(id, tag))
 }
 
