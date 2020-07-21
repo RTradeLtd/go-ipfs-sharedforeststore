@@ -23,7 +23,7 @@ func NewTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *TagCou
 }
 
 func (c *TagCounted) PutTag(ctx context.Context, id cid.Cid, tag datastore.Key, bg BlockGetter) error {
-	return c.TxWarp(ctx, func(tx *Tx) error {
+	return c.txWarp(ctx, func(tx *Tx) error {
 		idtag := getTaggedKey(id, tag)
 		_, err := tx.transaction.Get(idtag)
 		if err != datastore.ErrNotFound {
@@ -33,7 +33,7 @@ func (c *TagCounted) PutTag(ctx context.Context, id cid.Cid, tag datastore.Key, 
 		if err != nil {
 			return err
 		}
-		_, err = tx.Increment(id, bg, c.opt.LinkDecoder)
+		_, err = tx.increment(id, bg, c.opt.LinkDecoder)
 		return err
 	})
 }
@@ -65,7 +65,7 @@ func (c *TagCounted) GetTags(ctx context.Context, id cid.Cid) ([]datastore.Key, 
 
 func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Key) error {
 	tk := getTaggedKey(id, tag)
-	return c.TxWarp(ctx, func(tx *Tx) error {
+	return c.txWarp(ctx, func(tx *Tx) error {
 		has, err := tx.transaction.Has(tk)
 		if err != nil {
 			return err
@@ -76,7 +76,7 @@ func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Ke
 		if err = tx.transaction.Delete(tk); err != nil {
 			return err
 		}
-		_, err = tx.Decrement(id, c.opt.LinkDecoder)
+		_, err = tx.decrement(id, c.opt.LinkDecoder)
 		return err
 	})
 }

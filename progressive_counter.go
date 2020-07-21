@@ -23,7 +23,7 @@ func NewProgressiveCountedStore(ds datastore.TxnDatastore, opt *DatabaseOptions)
 func (c *ProgressiveCounted) ProgressiveIncrement(ctx context.Context, id cid.Cid, bg BlockGetter) (*CounterProgressManager, int64, error) {
 	var count int64
 	var meta metadata
-	err := c.TxWarp(ctx, func(tx *Tx) (err error) {
+	err := c.txWarp(ctx, func(tx *Tx) (err error) {
 		var key counterKey
 		count, meta, key, err = getCount(tx.transaction, id)
 		if err != nil {
@@ -91,7 +91,7 @@ func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid
 
 func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg BlockGetter) ([]cid.Cid, error) {
 	var cids []cid.Cid
-	err := c.TxWarp(ctx, func(tx *Tx) error {
+	err := c.txWarp(ctx, func(tx *Tx) error {
 		count, meta, key, err := getCount(tx.transaction, id)
 		if err != nil {
 			return err
