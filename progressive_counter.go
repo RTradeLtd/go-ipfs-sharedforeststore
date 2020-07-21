@@ -167,3 +167,9 @@ func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg Bloc
 	}
 	return cids, nil
 }
+
+var ErrNotImplemented = errors.New("not implemented")
+
+func (c *ProgressiveCounted) GetProgressReport(context.Context, cid.Cid, *ProgressReport) error {
+	return ErrNotImplemented
+}

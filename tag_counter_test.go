@@ -10,37 +10,39 @@ import (
 	leveldb "github.com/ipfs/go-ds-leveldb"
 )
 
+type tagTestCase struct {
+	node   int
+	tag    string
+	counts []int64
+}
+
+var tagCases = []tagTestCase{
+	{node: 0, tag: "A", counts: []int64{1, 0, 0, 1, 0, 1}},
+	{node: 1, tag: "A", counts: []int64{1, 1, 0, 2, 1, 3}},
+	{node: 2, tag: "B", counts: []int64{1, 1, 1, 2, 2, 3}},
+	{node: 3, tag: "C", counts: []int64{1, 1, 1, 3, 2, 3}},
+	{node: 0, tag: "A", counts: []int64{1, 1, 1, 3, 2, 3}},
+	{node: 0, tag: "B", counts: []int64{2, 1, 1, 3, 2, 3}},
+}
+
 func TestTagCounter(t *testing.T) {
 	t.Parallel()
-
-	type testCase struct {
-		node   int
-		tag    string
-		counts []int64
-	}
-	cases := []testCase{
-		{node: 0, tag: "A", counts: []int64{1, 0, 0, 1, 0, 1}},
-		{node: 1, tag: "A", counts: []int64{1, 1, 0, 2, 1, 3}},
-		{node: 2, tag: "B", counts: []int64{1, 1, 1, 2, 2, 3}},
-		{node: 3, tag: "C", counts: []int64{1, 1, 1, 3, 2, 3}},
-		{node: 0, tag: "A", counts: []int64{1, 1, 1, 3, 2, 3}},
-		{node: 0, tag: "B", counts: []int64{2, 1, 1, 3, 2, 3}},
-	}
 
 	cids, getter := setup(t)
 	db, err := leveldb.NewDatastore("", nil)
 	fatalIfErr(t, err)
+	defer db.Close()
 	store := NewTagCountedStore(db, nil)
 	ctx := context.Background()
 
-	for _, c := range cases {
+	for _, c := range tagCases {
 		fatalIfErr(t, store.PutTag(ctx, cids[c.node], datastore.NewKey(c.tag), getter))
 		checkCounts(t, ctx, c.counts, cids, store)
 	}
 
 	checkFullStoreByIterator(t, ctx, cids, store)
 
-	for _, c := range cases {
+	for _, c := range tagCases {
 		fatalIfErr(t, store.RemoveTag(ctx, cids[c.node], datastore.NewKey(c.tag)))
 	}
 	//all counts should now be zero
@@ -53,6 +55,7 @@ func BenchmarkPutTag(b *testing.B) {
 	cids, getter := setup(b)
 	db, err := leveldb.NewDatastore("", nil)
 	fatalIfErr(b, err)
+	defer db.Close()
 	store := NewTagCountedStore(db, nil)
 	ctx := context.Background()
 	id := cids[1]
@@ -68,6 +71,7 @@ func BenchmarkPutTag_P8(b *testing.B) {
 	cids, getter := setup(b)
 	db, err := leveldb.NewDatastore("", nil)
 	fatalIfErr(b, err)
+	defer db.Close()
 	store := NewTagCountedStore(db, nil)
 	ctx := context.Background()
 	tag := datastore.NewKey("tag")
@@ -94,6 +98,7 @@ func BenchmarkPutRemoveTag(b *testing.B) {
 	cids, getter := setup(b)
 	db, err := leveldb.NewDatastore("", nil)
 	fatalIfErr(b, err)
+	defer db.Close()
 	store := NewTagCountedStore(db, nil)
 	ctx := context.Background()
 	id := cids[1]
@@ -110,6 +115,7 @@ func BenchmarkPutRemoveTag_P8(b *testing.B) {
 	cids, getter := setup(b)
 	db, err := leveldb.NewDatastore("", nil)
 	fatalIfErr(b, err)
+	defer db.Close()
 	store := NewTagCountedStore(db, nil)
 	ctx := context.Background()
 	id := cids[1]

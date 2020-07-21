@@ -11,7 +11,6 @@ import (
 //It is backed by CounterStore and shares its counters.
 type ProgressiveTagCounted struct {
 	TagCounted
-	ProgressiveCounted
 }
 
 //NewProgressiveTagCountedStore creates a new ProgressiveTagCounted from a transactional datastore.
@@ -19,15 +18,24 @@ func NewProgressiveTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptio
 	cs := NewTagCountedStore(db, opt)
 	return &ProgressiveTagCounted{
 		TagCounted: *cs,
-		ProgressiveCounted: ProgressiveCounted{
-			Counted: cs.Counted,
-		},
 	}
 }
 
-func (c *ProgressiveTagCounted) ProgressivePutTag(ctx context.Context, id cid.Cid, tag datastore.Key, bg BlockGetter) ProgressManager {
+func (c *ProgressiveTagCounted) ProgressiveIncrement(ctx context.Context, id cid.Cid, bg BlockGetter) (*StoreProgressManager, int64, error) {
+	return (&ProgressiveCounted{c.Counted}).ProgressiveIncrement(ctx, id, bg)
+}
+
+func (c *ProgressiveTagCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) *StoreProgressManager {
+	return (&ProgressiveCounted{c.Counted}).ProgressiveContinue(ctx, id, bg)
+}
+
+func (c *ProgressiveTagCounted) GetProgressReport(ctx context.Context, id cid.Cid, r *ProgressReport) error {
+	return (&ProgressiveCounted{c.Counted}).GetProgressReport(ctx, id, r)
+}
+
+func (c *ProgressiveTagCounted) ProgressivePutTag(ctx context.Context, id cid.Cid, tag datastore.Key, bg BlockGetter) *StoreProgressManager {
 	var meta metadata
-	err := c.TagCounted.txWarp(ctx, func(tx *Tx) (err error) {
+	err := c.txWarp(ctx, func(tx *Tx) (err error) {
 		put, err := txPutTag(tx.transaction, id, tag)
 		if !put {
 			return err
