@@ -22,15 +22,25 @@ func NewTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *TagCou
 	}
 }
 
+//txPutTag returns true if a new tag was added
+func txPutTag(tx datastore.Txn, id cid.Cid, tag datastore.Key) (bool, error) {
+	idtag := getTaggedKey(id, tag)
+	_, err := tx.Get(idtag)
+	if err != datastore.ErrNotFound {
+		//tag already added, or some other error occurred
+		return false, err
+	}
+	err = tx.Put(idtag, nil)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (c *TagCounted) PutTag(ctx context.Context, id cid.Cid, tag datastore.Key, bg BlockGetter) error {
 	return c.txWarp(ctx, func(tx *Tx) error {
-		idtag := getTaggedKey(id, tag)
-		_, err := tx.transaction.Get(idtag)
-		if err != datastore.ErrNotFound {
-			return err
-		}
-		err = tx.transaction.Put(idtag, nil)
-		if err != nil {
+		put, err := txPutTag(tx.transaction, id, tag)
+		if !put {
 			return err
 		}
 		_, err = tx.increment(id, bg, c.opt.LinkDecoder)

@@ -20,7 +20,7 @@ func NewProgressiveCountedStore(ds datastore.TxnDatastore, opt *DatabaseOptions)
 	}
 }
 
-func (c *ProgressiveCounted) ProgressiveIncrement(ctx context.Context, id cid.Cid, bg BlockGetter) (*CounterProgressManager, int64, error) {
+func (c *ProgressiveCounted) ProgressiveIncrement(ctx context.Context, id cid.Cid, bg BlockGetter) (*StoreProgressManager, int64, error) {
 	var count int64
 	var meta metadata
 	err := c.txWarp(ctx, func(tx *Tx) (err error) {
@@ -42,21 +42,28 @@ func (c *ProgressiveCounted) ProgressiveIncrement(ctx context.Context, id cid.Ci
 }
 
 var ErrProgressReverted = errors.New("progress was reverted by an other action")
+var ErrRunOnce = errors.New("progress can only run once")
 
-type CounterProgressManager struct {
+//StoreProgressManager implements ProgressManager
+type StoreProgressManager struct {
+	err        error
 	run        func() error
 	report     ProgressReport
 	reportLock sync.RWMutex
 }
 
-func (m *CounterProgressManager) Run() error {
+func (m *StoreProgressManager) Run() error {
 	if m == nil {
 		return nil
 	}
+	if m.err != nil {
+		return m.err
+	}
+	m.err = ErrRunOnce
 	return m.run()
 }
 
-func (m *CounterProgressManager) CopyReport(r *ProgressReport) error {
+func (m *StoreProgressManager) CopyReport(r *ProgressReport) error {
 	if m == nil {
 		return nil
 	}
@@ -66,8 +73,8 @@ func (m *CounterProgressManager) CopyReport(r *ProgressReport) error {
 	return nil
 }
 
-func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) *CounterProgressManager {
-	m := &CounterProgressManager{}
+func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) *StoreProgressManager {
+	m := &StoreProgressManager{}
 	var r func(id cid.Cid) error
 	r = func(id cid.Cid) error {
 		for {
