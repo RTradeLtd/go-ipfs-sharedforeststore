@@ -25,13 +25,11 @@ func NewTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *TagCou
 //txPutTag returns true if a new tag was added
 func txPutTag(tx datastore.Txn, id cid.Cid, tag datastore.Key) (bool, error) {
 	idtag := getTagKey(id, tag)
-	_, err := tx.Get(idtag)
-	if err != datastore.ErrNotFound {
+	if _, err := tx.Get(idtag); err != datastore.ErrNotFound {
 		//tag already added, or some other error occurred
 		return false, err
 	}
-	err = tx.Put(idtag, nil)
-	if err != nil {
+	if err := tx.Put(idtag, nil); err != nil {
 		return false, err
 	}
 	return true, nil

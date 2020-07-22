@@ -80,7 +80,7 @@ type CounterStore interface {
 
 //TagStore is an extension of CounterStore where the count is replaced by a set of tags.
 //At the cost of increased metadata size, this allows each operation to be idempotent,
-// and there for safe to user over an undependable network connection.
+// and therefor safe to user over an undependable network connection.
 //The tag can also be used for debugging and easily finding out who pinned which file.
 type TagStore interface {
 	ReadStore

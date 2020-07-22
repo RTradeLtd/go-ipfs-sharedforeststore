@@ -75,7 +75,7 @@ func (m *StoreProgressManager) CopyReport(r *ProgressReport) error {
 
 func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) *StoreProgressManager {
 	m := &StoreProgressManager{}
-	var r func(id cid.Cid) error
+	var r func(id cid.Cid) error // r is called recursively
 	r = func(id cid.Cid) error {
 		for {
 			cids, err := c.progressTx(ctx, id, bg)
