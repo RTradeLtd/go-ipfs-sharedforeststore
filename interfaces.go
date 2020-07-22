@@ -105,7 +105,7 @@ type TagCounterStore interface {
 //ProgressManager handles running and reporting on a progress.
 type ProgressManager interface {
 	//Run is blocking until the progress finishes.
-	Run() error
+	Run(context.Context) error
 	//CopyReport fill the given report with current status without allocating heap.
 	CopyReport(*ProgressReport) error
 }

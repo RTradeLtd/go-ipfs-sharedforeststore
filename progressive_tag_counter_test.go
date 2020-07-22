@@ -46,12 +46,12 @@ func TestProgressiveTagCounter(t *testing.T) {
 					}
 				}
 				if c.tag == "B" {
-					if err := pm.run(); err != nil {
+					if err := pm.run(ctx); err != nil {
 						return err
 					}
 				}
 				if c.node > 1 {
-					if err := store.ProgressiveContinue(ctx, cids[c.node], getter).Run(); err != nil {
+					if err := store.ProgressiveContinue(ctx, cids[c.node], getter).Run(ctx); err != nil {
 						return err
 					}
 				}
@@ -59,7 +59,7 @@ func TestProgressiveTagCounter(t *testing.T) {
 					return err
 				}
 				pm = store.ProgressivePutTag(ctx, cids[c.node], datastore.NewKey(c.tag), getter)
-				return pm.Run()
+				return pm.Run(ctx)
 			})
 		}
 		fatalIfErr(t, group.Wait())
@@ -85,7 +85,7 @@ func TestProgressiveTagCounter(t *testing.T) {
 			ctx := gctx
 			for i := 0; i < 20; i++ {
 				pm := store.ProgressivePutTag(ctx, cids[c.node], datastore.NewKey(c.tag), getter)
-				if err := pm.Run(); err != nil {
+				if err := pm.Run(ctx); err != nil {
 					t.Error(err)
 					return err
 				}

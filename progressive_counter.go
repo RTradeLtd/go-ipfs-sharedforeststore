@@ -47,12 +47,12 @@ var ErrRunOnce = errors.New("progress can only run once")
 //StoreProgressManager implements ProgressManager
 type StoreProgressManager struct {
 	err        error
-	run        func() error
+	run        func(context.Context) error
 	report     ProgressReport
 	reportLock sync.RWMutex
 }
 
-func (m *StoreProgressManager) Run() error {
+func (m *StoreProgressManager) Run(ctx context.Context) error {
 	if m == nil {
 		return nil
 	}
@@ -60,7 +60,7 @@ func (m *StoreProgressManager) Run() error {
 		return m.err
 	}
 	m.err = ErrRunOnce
-	return m.run()
+	return m.run(ctx)
 }
 
 func (m *StoreProgressManager) CopyReport(r *ProgressReport) error {
@@ -89,7 +89,8 @@ func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid
 			}
 		}
 	}
-	m.run = func() error {
+	m.run = func(ctx2 context.Context) error {
+		ctx = ctx2
 		return r(id)
 	}
 	//TODO: update report as we progress
