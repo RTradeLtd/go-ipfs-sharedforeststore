@@ -120,7 +120,7 @@ func (c *Tx) increment(id cid.Cid, bg BlockGetter, ld LinkDecoderFunc) (int64, e
 	if err != nil {
 		return 0, err
 	}
-	cids, err := ld(id, data)
+	cids, _, err := ld(id, data)
 	if err != nil {
 		return 0, err
 	}
@@ -176,7 +176,7 @@ func (c *Tx) decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	cids, err := ld(id, data)
+	cids, _, err := ld(id, data)
 	if err != nil {
 		return 0, err
 	}

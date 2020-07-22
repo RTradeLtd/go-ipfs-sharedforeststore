@@ -20,41 +20,44 @@ func (e *CodecNotSupportedError) Error() string {
 
 //LinkDecoder is the default function for DatabaseOptions.LinkDecoder.
 //It decodes the required links for some common codecs.
-func LinkDecoder(id cid.Cid, data []byte) ([]cid.Cid, error) {
+//Total size returned is zero if not decodable.
+func LinkDecoder(id cid.Cid, data []byte) ([]cid.Cid, uint64, error) {
 	switch id.Prefix().GetCodec() {
 	default:
 		b, err := blocks.NewBlockWithCid(data, id)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		node, err := ipld.DefaultBlockDecoder.Decode(b)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		ls := node.Links()
 		out := make([]cid.Cid, len(ls))
 		for i, l := range ls {
 			if l == nil {
-				return nil, errors.Errorf("block %v contains empty links %v", id, ls)
+				return nil, 0, errors.Errorf("block %v contains empty links %v", id, ls)
 			}
 			out[i] = l.Cid
 		}
-		return out, nil
+		size, _ := node.Size()
+		return out, size, nil
 	case cid.Raw:
-		return nil, nil
+		return nil, uint64(len(data)), nil
 	case cid.DagProtobuf:
 		pnode, err := merkledag.DecodeProtobuf(data)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, 0, errors.WithStack(err)
 		}
 		ls := pnode.Links()
 		out := make([]cid.Cid, len(ls))
 		for i, l := range ls {
 			if l == nil {
-				return nil, errors.Errorf("block %v contains empty links %v", id, ls)
+				return nil, 0, errors.Errorf("block %v contains empty links %v", id, ls)
 			}
 			out[i] = l.Cid
 		}
-		return out, nil
+		size, _ := pnode.Size()
+		return out, size, nil
 	}
 }

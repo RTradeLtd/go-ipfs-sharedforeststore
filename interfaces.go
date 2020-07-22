@@ -16,9 +16,9 @@ type BlockGetter interface {
 	GetBlock(context.Context, cid.Cid) ([]byte, error)
 }
 
-//LinkDecoderFunc is a function that decodes a raw data according to cid to
-//return linked cids.
-type LinkDecoderFunc func(cid.Cid, []byte) ([]cid.Cid, error)
+//LinkDecoderFunc is a function that decodes a raw data according to cid to return linked cids.
+// It also returns the total size of all contents in bytes if availed.
+type LinkDecoderFunc func(cid.Cid, []byte) ([]cid.Cid, uint64, error)
 
 //CidIterator is an iterator of cids.
 type CidIterator interface {
@@ -111,24 +111,15 @@ type ProgressManager interface {
 }
 
 // ProgressReport reports progress for one cid's dependents.
-// Have* ÷ Known* is an estimated progress.
-// Without the KnownAll* flag, the Have* values are pessimistic as more existing dependents could
-// already exist, while the Known* values are optimistic as that value could increase.
+// If KnownBytes is not 0, then ( HaveBytes ÷ KnownBytes ) is an estimated progress.
+// The HaveBytes values are pessimistic as more existing dependents could already exist.
+// KnownBytes is only available if the data operated on contains this metadata.
 type ProgressReport struct {
-	//HaveBlocks is the number of blocks save in the store that we know is a dependent.
-	HaveBlocks int64
-	//KnownBlocks is the number of blocks we can currently count,
-	//this number can increase as we see more blocks with links.
-	KnownBlocks int64
-	//KnownAllBlocks is true if KnownBlocks is at max
-	KnownAllBlocks bool
-	//HaveBytes is the bytes version of HaveBlocks
-	HaveBytes int64
-	//KnownBytes is the bytes version of KnownBlocks
-	KnownBytes int64
-	//KnownAllBytes is the bytes version of KnownBlocks, this true when
-	//the data structure reports total size early.
-	KnownAllBytes bool
+	initalized bool
+	//HaveBytes is the amount of bytes we know we have
+	HaveBytes uint64
+	//KnownBytes is the amount of bytes we need
+	KnownBytes uint64
 }
 
 //ProgressiveCounterStore is a CounterStore that allows partial uploads

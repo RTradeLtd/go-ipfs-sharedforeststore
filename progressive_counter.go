@@ -73,12 +73,18 @@ func (m *StoreProgressManager) CopyReport(r *ProgressReport) error {
 	return nil
 }
 
+func (m *StoreProgressManager) updateReport(f func(r *ProgressReport)) {
+	m.reportLock.Lock()
+	defer m.reportLock.Unlock()
+	f(&(m.report))
+}
+
 func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) *StoreProgressManager {
 	m := &StoreProgressManager{}
 	var r func(id cid.Cid) error // r is called recursively
 	r = func(id cid.Cid) error {
 		for {
-			cids, err := c.progressTx(ctx, id, bg)
+			cids, err := c.progressTx(ctx, id, bg, m)
 			if len(cids) == 0 || err != nil {
 				return err
 			}
@@ -93,12 +99,12 @@ func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid
 		ctx = ctx2
 		return r(id)
 	}
-	//TODO: update report as we progress
 	return m
 }
 
-func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg BlockGetter) ([]cid.Cid, error) {
+func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg BlockGetter, m *StoreProgressManager) ([]cid.Cid, error) {
 	var cids []cid.Cid
+	var size uint64
 	err := c.txWarp(ctx, func(tx *Tx) error {
 		count, meta, key, err := getCount(tx.transaction, id)
 		if err != nil {
@@ -124,8 +130,8 @@ func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg Bloc
 				return err
 			}
 		}
-		allLinks, err := c.opt.LinkDecoder(id, data)
-		if err != nil {
+		var allLinks []cid.Cid
+		if allLinks, size, err = c.opt.LinkDecoder(id, data); err != nil {
 			return err
 		}
 		if cids == nil {
@@ -166,6 +172,17 @@ func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg Bloc
 	if err != nil {
 		return nil, err
 	}
+	m.updateReport(func(r *ProgressReport) {
+		if r.initalized == false {
+			r.initalized = true
+			if size != 0 {
+				r.KnownBytes = size
+			}
+		}
+		if len(cids) == 0 {
+			r.HaveBytes = size
+		}
+	})
 	return cids, nil
 }
 
