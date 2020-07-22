@@ -41,9 +41,7 @@ func TestProgressiveTagCounter(t *testing.T) {
 				}
 				r := ProgressReport{}
 				if err := pm.CopyReport(&r); err != nil {
-					if err != ErrNotImplemented {
-						return err
-					}
+					return err
 				}
 				if c.tag == "B" {
 					if err := pm.run(ctx); err != nil {

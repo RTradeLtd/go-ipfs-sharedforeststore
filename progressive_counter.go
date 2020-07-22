@@ -173,7 +173,7 @@ func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg Bloc
 		return nil, err
 	}
 	m.updateReport(func(r *ProgressReport) {
-		if r.initalized == false {
+		if !r.initalized {
 			r.initalized = true
 			if size != 0 {
 				r.KnownBytes = size
@@ -186,8 +186,51 @@ func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg Bloc
 	return cids, nil
 }
 
-var ErrNotImplemented = errors.New("not implemented")
+var ErrSizeNotSupported = errors.New("size not supported")
 
-func (c *ProgressiveCounted) GetProgressReport(context.Context, cid.Cid, *ProgressReport) error {
-	return ErrNotImplemented
+func (c *ProgressiveCounted) GetProgressReport(ctx context.Context, id cid.Cid, r *ProgressReport) error {
+	*r = ProgressReport{initalized: true} //reset
+	data, err := c.GetBlock(ctx, id)
+	if err != nil {
+		return err
+	}
+	_, size, err := c.opt.LinkDecoder(id, data)
+	if err != nil {
+		return err
+	}
+	if size == 0 {
+		return ErrSizeNotSupported
+	}
+	r.KnownBytes = size
+
+	var sum func(cid.Cid) (uint64, error)
+	sum = func(id cid.Cid) (uint64, error) {
+		_, meta, _, err := getCount(c.ds, id)
+		if err != nil {
+			return 0, err
+		}
+		if !meta.HavePart {
+			return 0, nil
+		}
+		data, err := c.GetBlock(ctx, id)
+		if err != nil {
+			return 0, err
+		}
+		cids, size, err := c.opt.LinkDecoder(id, data)
+		if err != nil {
+			return 0, err
+		}
+		if meta.Complete {
+			return size, nil
+		} else {
+			size = 0
+			for _, id := range cids {
+				n, _ := sum(id) //ignore error here so we add as much as possible
+				size += n
+			}
+			return size, nil
+		}
+	}
+	r.HaveBytes, err = sum(id)
+	return err
 }
