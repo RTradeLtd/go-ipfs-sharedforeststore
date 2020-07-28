@@ -2,6 +2,8 @@ package sharedforeststore
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/ipfs/go-datastore"
@@ -100,4 +102,48 @@ func TestProgressiveTagCounter(t *testing.T) {
 	checkCounts(t, ctx, make([]int64, len(cids)), cids, store)
 	//no blocks from store should be left
 	checkFullStoreByIterator(t, ctx, nil, store)
+}
+
+func BenchmarkPutRemoveProgrisveTag(b *testing.B) {
+	cids, getter := setup(b)
+	db, err := leveldb.NewDatastore("", nil)
+	fatalIfErr(b, err)
+	defer db.Close()
+	store := NewProgressiveTagCountedStore(db, nil)
+	ctx := context.Background()
+	id := cids[1]
+	tag := datastore.NewKey("tag")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fatalIfErr(b, store.ProgressivePutTag(ctx, id, tag, getter).Run(ctx))
+		fatalIfErr(b, store.RemoveTag(ctx, id, tag))
+	}
+}
+
+func BenchmarkPutRemoveProgressiveTag_P8(b *testing.B) {
+	p := 8
+	cids, getter := setup(b)
+	db, err := leveldb.NewDatastore("", nil)
+	fatalIfErr(b, err)
+	defer db.Close()
+	store := NewProgressiveTagCountedStore(db, nil)
+	ctx := context.Background()
+	id := cids[1]
+	wg := sync.WaitGroup{}
+	wg.Add(p)
+	b.ResetTimer()
+	bn := b.N
+	for i := p; i > 0; i-- {
+		n := bn / i
+		bn -= n
+		tag := datastore.NewKey(fmt.Sprint(i))
+		go func() {
+			defer wg.Done()
+			for i := 0; i < n; i++ {
+				fatalIfErr(b, store.ProgressivePutTag(ctx, id, tag, getter).Run(ctx))
+				fatalIfErr(b, store.RemoveTag(ctx, id, tag))
+			}
+		}()
+	}
+	wg.Wait()
 }
