@@ -192,6 +192,9 @@ func (c *ProgressiveCounted) GetProgressReport(ctx context.Context, id cid.Cid, 
 	*r = ProgressReport{initalized: true} //reset
 	data, err := c.GetBlock(ctx, id)
 	if err != nil {
+		if err == datastore.ErrNotFound {
+			return nil //block not found reports zero progress
+		}
 		return err
 	}
 	_, size, err := c.opt.LinkDecoder(id, data)
