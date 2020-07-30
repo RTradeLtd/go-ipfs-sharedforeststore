@@ -13,6 +13,8 @@ type ProgressiveTagCounted struct {
 	TagCounted
 }
 
+var _ ProgressiveTagCounterStore = (*ProgressiveTagCounted)(nil)
+
 //NewProgressiveTagCountedStore creates a new ProgressiveTagCounted from a transactional datastore.
 func NewProgressiveTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *ProgressiveTagCounted {
 	cs := NewTagCountedStore(db, opt)
@@ -21,11 +23,11 @@ func NewProgressiveTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptio
 	}
 }
 
-func (c *ProgressiveTagCounted) ProgressiveIncrement(ctx context.Context, id cid.Cid, bg BlockGetter) (*StoreProgressManager, int64, error) {
+func (c *ProgressiveTagCounted) ProgressiveIncrement(ctx context.Context, id cid.Cid, bg BlockGetter) (ProgressManager, int64, error) {
 	return (&ProgressiveCounted{c.Counted}).ProgressiveIncrement(ctx, id, bg)
 }
 
-func (c *ProgressiveTagCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) *StoreProgressManager {
+func (c *ProgressiveTagCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) ProgressManager {
 	return (&ProgressiveCounted{c.Counted}).ProgressiveContinue(ctx, id, bg)
 }
 
@@ -33,7 +35,7 @@ func (c *ProgressiveTagCounted) GetProgressReport(ctx context.Context, id cid.Ci
 	return (&ProgressiveCounted{c.Counted}).GetProgressReport(ctx, id, r)
 }
 
-func (c *ProgressiveTagCounted) ProgressivePutTag(ctx context.Context, id cid.Cid, tag datastore.Key, bg BlockGetter) *StoreProgressManager {
+func (c *ProgressiveTagCounted) ProgressivePutTag(ctx context.Context, id cid.Cid, tag datastore.Key, bg BlockGetter) ProgressManager {
 	var meta metadata
 	err := c.txWarp(ctx, func(tx *Tx) (err error) {
 		put, err := txPutTag(tx.transaction, id, tag)
@@ -53,7 +55,7 @@ func (c *ProgressiveTagCounted) ProgressivePutTag(ctx context.Context, id cid.Ci
 		return &StoreProgressManager{err: err}
 	}
 	if meta.Complete {
-		return nil
+		return ProgressCompleted
 	}
 	return c.ProgressiveContinue(ctx, id, bg)
 }

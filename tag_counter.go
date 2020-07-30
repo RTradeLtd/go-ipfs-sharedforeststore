@@ -14,6 +14,8 @@ type TagCounted struct {
 	Counted
 }
 
+var _ TagCounterStore = (*TagCounted)(nil)
+
 //NewTagCountedStore creates a new TagCounted from a transactional datastore.
 func NewTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *TagCounted {
 	cs := NewCountedStore(db, opt)

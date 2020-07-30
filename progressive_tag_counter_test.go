@@ -46,7 +46,7 @@ func TestProgressiveTagCounter(t *testing.T) {
 					return err
 				}
 				if c.tag == "B" {
-					if err := pm.run(ctx); err != nil {
+					if err := pm.Run(ctx); err != nil {
 						return err
 					}
 				}
