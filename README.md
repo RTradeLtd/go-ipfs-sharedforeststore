@@ -41,8 +41,6 @@ Counting is also an optional implementation for the internal references of a `Ta
 
 #### Choose Between Single Transaction or Progressive
 
-(Progressive is not yet implemented)
-
 This content store library offers two transactional options when adding contents.
 
 - Single Transaction: where blocks of an IPLD graph are either all saved or none at all.

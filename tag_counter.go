@@ -8,8 +8,8 @@ import (
 	"github.com/ipfs/go-datastore/query"
 )
 
-//TagCounted supports both TaggedStore and CounterStore interfaces.
-//The TaggedStore is backed by CounterStore and shares its counters.
+//TagCounted supports both TagStore and CounterStore interfaces.
+//It is backed by a CounterStore and shares its counters.
 type TagCounted struct {
 	Counted
 }
@@ -22,28 +22,36 @@ func NewTagCountedStore(db datastore.TxnDatastore, opt *DatabaseOptions) *TagCou
 	}
 }
 
+//txPutTag returns true if a new tag was added
+func txPutTag(tx datastore.Txn, id cid.Cid, tag datastore.Key) (bool, error) {
+	idtag := getTagKey(id, tag)
+	if _, err := tx.Get(idtag); err != datastore.ErrNotFound {
+		//tag already added, or some other error occurred
+		return false, err
+	}
+	if err := tx.Put(idtag, nil); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (c *TagCounted) PutTag(ctx context.Context, id cid.Cid, tag datastore.Key, bg BlockGetter) error {
-	return c.TxWarp(ctx, func(tx *Tx) error {
-		idtag := getTaggedKey(id, tag)
-		_, err := tx.transaction.Get(idtag)
-		if err != datastore.ErrNotFound {
+	return c.txWarp(ctx, func(tx *Tx) error {
+		put, err := txPutTag(tx.transaction, id, tag)
+		if !put {
 			return err
 		}
-		err = tx.transaction.Put(idtag, nil)
-		if err != nil {
-			return err
-		}
-		_, err = tx.Increment(id, bg, c.opt.LinkDecoder)
+		_, err = tx.increment(id, bg, c.opt.LinkDecoder)
 		return err
 	})
 }
 
-func (c *TagCounted) HasBlockTagged(ctx context.Context, id cid.Cid, tag datastore.Key) (bool, error) {
-	return c.ds.Has(getTaggedKey(id, tag))
+func (c *TagCounted) HasTag(ctx context.Context, id cid.Cid, tag datastore.Key) (bool, error) {
+	return c.ds.Has(getTagKey(id, tag))
 }
 
 func (c *TagCounted) GetTags(ctx context.Context, id cid.Cid) ([]datastore.Key, error) {
-	prefix := getTaggedKey(id, datastore.NewKey(""))
+	prefix := newKeyFromCid(id, tagSuffixKey)
 	rs, err := c.ds.Query(query.Query{
 		Filters:  []query.Filter{query.FilterKeyPrefix{Prefix: prefix.String()}},
 		KeysOnly: true,
@@ -64,8 +72,8 @@ func (c *TagCounted) GetTags(ctx context.Context, id cid.Cid) ([]datastore.Key, 
 }
 
 func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Key) error {
-	tk := getTaggedKey(id, tag)
-	return c.TxWarp(ctx, func(tx *Tx) error {
+	tk := getTagKey(id, tag)
+	return c.txWarp(ctx, func(tx *Tx) error {
 		has, err := tx.transaction.Has(tk)
 		if err != nil {
 			return err
@@ -76,7 +84,7 @@ func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Ke
 		if err = tx.transaction.Delete(tk); err != nil {
 			return err
 		}
-		_, err = tx.Decrement(id, c.opt.LinkDecoder)
+		_, err = tx.decrement(id, c.opt.LinkDecoder)
 		return err
 	})
 }

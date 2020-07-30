@@ -40,7 +40,7 @@ func NewCountedStore(ds datastore.TxnDatastore, opt *DatabaseOptions) *Counted {
 	}
 }
 
-func (c *Counted) NewTransaction(ctx context.Context) (*Tx, error) {
+func (c *Counted) newTransaction(ctx context.Context) (*Tx, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -54,9 +54,9 @@ func (c *Counted) NewTransaction(ctx context.Context) (*Tx, error) {
 	}, err
 }
 
-//TxWarp handles resource management and commit retry for a transaction
-func (c *Counted) TxWarp(ctx context.Context, f func(tx *Tx) error) error {
-	tx, err := c.NewTransaction(ctx)
+//txWarp handles resource management and commit retry for a transaction
+func (c *Counted) txWarp(ctx context.Context, f func(tx *Tx) error) error {
+	tx, err := c.newTransaction(ctx)
 	if err != nil {
 		return err
 	}
@@ -69,13 +69,13 @@ func (c *Counted) TxWarp(ctx context.Context, f func(tx *Tx) error) error {
 		if commitError = tx.transaction.Commit(); commitError == nil {
 			return nil
 		}
-		if err := tx.Reset(c.ds); err != nil {
+		if err := tx.reset(c.ds); err != nil {
 			return multierr.Combine(err, commitError)
 		}
 	}
 }
 
-func (c *Tx) Reset(db datastore.TxnDatastore) (err error) {
+func (c *Tx) reset(db datastore.TxnDatastore) (err error) {
 	if err := c.Err(); err != nil {
 		return err
 	}
@@ -85,41 +85,47 @@ func (c *Tx) Reset(db datastore.TxnDatastore) (err error) {
 }
 
 func (c *Counted) Increment(ctx context.Context, id cid.Cid, bg BlockGetter) (count int64, err error) {
-	err = c.TxWarp(ctx, func(tx *Tx) error {
-		count, err = tx.Increment(id, bg, c.opt.LinkDecoder)
+	err = c.txWarp(ctx, func(tx *Tx) error {
+		count, err = tx.increment(id, bg, c.opt.LinkDecoder)
 		return err
 	})
 	return
 }
 
-func (c *Tx) Increment(id cid.Cid, bg BlockGetter, ld LinkDecoderFunc) (int64, error) {
+func (c *Tx) increment(id cid.Cid, bg BlockGetter, ld LinkDecoderFunc) (int64, error) {
 	if err := c.Err(); err != nil {
 		return 0, err
 	}
-	count, key, err := getCount(c.transaction, id)
+	count, meta, key, err := getCount(c.transaction, id)
 	if err != nil {
 		return 0, err
 	}
 	count++
-	if err := setCount(c.transaction, count, key); err != nil {
+	if err := setCount(c.transaction, key, count, metadata{Complete: true}); err != nil {
 		return 0, err
 	}
-	if count > 1 {
+	if count > 1 && meta.Complete {
 		return count, nil
 	}
-	data, err := bg.GetBlock(c, id)
+	var data []byte
+	if !meta.HavePart {
+		data, err = bg.GetBlock(c, id)
+		if err != nil {
+			return 0, err
+		}
+		err = setData(c.transaction, id, data)
+	} else {
+		data, err = c.transaction.Get(getDataKey(id))
+	}
 	if err != nil {
 		return 0, err
 	}
-	if err := setData(c.transaction, id, data); err != nil {
-		return 0, err
-	}
-	cids, err := ld(id, data)
+	cids, _, err := ld(id, data)
 	if err != nil {
 		return 0, err
 	}
 	for _, linkedCid := range cids {
-		if _, err := c.Increment(linkedCid, bg, ld); err != nil {
+		if _, err := c.increment(linkedCid, bg, ld); err != nil {
 			return 0, err
 		}
 	}
@@ -130,23 +136,26 @@ func (c *Counted) GetCount(ctx context.Context, id cid.Cid) (count int64, err er
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
-	count, _, err = getCount(c.ds, id)
+	count, meta, _, err := getCount(c.ds, id)
+	if !meta.Complete {
+		return 0, err
+	}
 	return count, err
 }
 
 func (c *Counted) Decrement(ctx context.Context, id cid.Cid) (count int64, err error) {
-	err = c.TxWarp(ctx, func(tx *Tx) error {
-		count, err = tx.Decrement(id, c.opt.LinkDecoder)
+	err = c.txWarp(ctx, func(tx *Tx) error {
+		count, err = tx.decrement(id, c.opt.LinkDecoder)
 		return err
 	})
 	return
 }
 
-func (c *Tx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
+func (c *Tx) decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 	if err := c.Err(); err != nil {
 		return 0, err
 	}
-	count, key, err := getCount(c.transaction, id)
+	count, meta, key, err := getCount(c.transaction, id)
 	if err != nil {
 		return 0, err
 	}
@@ -154,8 +163,11 @@ func (c *Tx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 	if count < 0 {
 		return count, nil
 	}
-	if err := setCount(c.transaction, count, key); err != nil {
+	if err := setCount(c.transaction, key, count, meta); err != nil {
 		return 0, err
+	}
+	if !meta.HavePart {
+		return 0, nil
 	}
 	if count > 0 {
 		return count, nil
@@ -164,12 +176,12 @@ func (c *Tx) Decrement(id cid.Cid, ld LinkDecoderFunc) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	cids, err := ld(id, data)
+	cids, _, err := ld(id, data)
 	if err != nil {
 		return 0, err
 	}
 	for _, linkedCid := range cids {
-		if _, err := c.Decrement(linkedCid, ld); err != nil {
+		if _, err := c.decrement(linkedCid, ld); err != nil {
 			return 0, err
 		}
 	}
