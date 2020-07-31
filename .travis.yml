@@ -10,6 +10,7 @@ env:
 
 install:
 - go get honnef.co/go/tools/cmd/staticcheck
+- go get github.com/google/addlicense
 - go mod download
 
 before_script:

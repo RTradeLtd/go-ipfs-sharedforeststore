@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/gogo/protobuf v1.3.1
+	github.com/google/addlicense v0.0.0-20200622132530-df58acafd6d5
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.3 // indirect
 	github.com/ipfs/go-cid v0.0.6
@@ -33,5 +34,5 @@ require (
 	golang.org/x/tools v0.0.0-20200701133321-6ddc6be4d35f // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.2.4 // indirect
-	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
+	honnef.co/go/tools v0.0.1-2020.1.5
 )

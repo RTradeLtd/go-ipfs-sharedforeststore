@@ -15,10 +15,10 @@ jobs:
           name: download dependencies
           command: go mod download
       - run:
-          name: install-staticcheck
-          command: go get honnef.co/go/tools/cmd/staticcheck
+          name: install-verifiers
+          command: go get honnef.co/go/tools/cmd/staticcheck github.com/google/addlicense
       - run:
-          name: run-staticcheck
+          name: run-verifiers
           command: make verifiers
       - run: go test -v -race -coverprofile=coverage.txt -timeout 1800s ./...
       - codecov/upload:

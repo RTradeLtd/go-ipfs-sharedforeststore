@@ -14,7 +14,7 @@ deps-update: deps
 tests:
 	go test -race -cover -count 1 ./...
 
-# run standard go tooling for better rcode hygiene
+# run standard go tooling for better code hygiene
 .PHONY: tidy
 tidy: imports fmt
 	go vet ./...
@@ -30,8 +30,17 @@ imports:
 fmt:
 	find . -type f -name '*.go' -exec gofmt -s -w {} \;
 
-verifiers: staticcheck
+verifiers: staticcheck license-check
 
 staticcheck:
-	@echo "Running $@ check"
-	@GO111MODULE=on ${GOPATH}/bin/staticcheck ./...
+	@echo "Running $@"
+    @GO111MODULE=on ${GOPATH}/bin/staticcheck ./...
+
+license-check:
+	@echo "Running $@"
+	${GOPATH}/bin/addlicense -c "RTrade Technologies Ltd" -check *.go */*.go
+
+# add apach license to .go files
+.PHONY: addlicense
+addlicense:
+	go run github.com/google/addlicense  -c "RTrade Technologies Ltd" *.go */*.go
