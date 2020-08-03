@@ -34,6 +34,8 @@ type Counted struct {
 	ds  datastore.TxnDatastore
 }
 
+var _ CounterStore = (*Counted)(nil)
+
 //Tx is a datastore transaction where all actions are group in to a single transaction.
 type Tx struct {
 	context.Context

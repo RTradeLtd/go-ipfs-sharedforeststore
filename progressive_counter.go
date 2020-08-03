@@ -27,6 +27,8 @@ type ProgressiveCounted struct {
 	Counted
 }
 
+var _ ProgressiveCounterStore = (*ProgressiveCounted)(nil)
+
 //NewProgressiveCountedStore creates a new ProgressiveCounted (implements ProgressiveCounterStore) from a transactional datastore.
 func NewProgressiveCountedStore(ds datastore.TxnDatastore, opt *DatabaseOptions) *ProgressiveCounted {
 	return &ProgressiveCounted{
@@ -34,7 +36,7 @@ func NewProgressiveCountedStore(ds datastore.TxnDatastore, opt *DatabaseOptions)
 	}
 }
 
-func (c *ProgressiveCounted) ProgressiveIncrement(ctx context.Context, id cid.Cid, bg BlockGetter) (*StoreProgressManager, int64, error) {
+func (c *ProgressiveCounted) ProgressiveIncrement(ctx context.Context, id cid.Cid, bg BlockGetter) (ProgressManager, int64, error) {
 	var count int64
 	var meta metadata
 	err := c.txWarp(ctx, func(tx *Tx) (err error) {
@@ -66,6 +68,9 @@ type StoreProgressManager struct {
 	reportLock sync.RWMutex
 }
 
+//ProgressCompleted is a typed nil of *StoreProgressManager to indicate there is no progress to track
+var ProgressCompleted ProgressManager = (*StoreProgressManager)(nil)
+
 func (m *StoreProgressManager) Run(ctx context.Context) error {
 	if m == nil {
 		return nil
@@ -93,7 +98,7 @@ func (m *StoreProgressManager) updateReport(f func(r *ProgressReport)) {
 	f(&(m.report))
 }
 
-func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) *StoreProgressManager {
+func (c *ProgressiveCounted) ProgressiveContinue(ctx context.Context, id cid.Cid, bg BlockGetter) ProgressManager {
 	m := &StoreProgressManager{}
 	var r func(id cid.Cid) error // r is called recursively
 	r = func(id cid.Cid) error {
