@@ -119,7 +119,7 @@ func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Ke
 func (c *TagCounted) UpdateTag(ctx context.Context, tag datastore.Key, update []cid.Cid, bg BlockGetter) error {
 	revPrefix := getTagKeyReversPrefix(tag)
 	q := query.Query{
-		Filters:  []query.Filter{query.FilterKeyPrefix{Prefix: revPrefix}},
+		Filters:  []query.Filter{query.FilterKeyPrefix{Prefix: revPrefix.String()}},
 		KeysOnly: true,
 	}
 	return c.txWarp(ctx, func(tx *Tx) error {
@@ -128,7 +128,7 @@ func (c *TagCounted) UpdateTag(ctx context.Context, tag datastore.Key, update []
 			return err
 		}
 		defer rs.Close()
-		before := make(map[database.Key]struct{})
+		before := make(map[datastore.Key]struct{})
 		es, err := rs.Rest()
 		if err != nil {
 			return err
