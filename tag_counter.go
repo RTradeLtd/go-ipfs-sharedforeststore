@@ -43,9 +43,12 @@ func txPutTag(tx datastore.Txn, id cid.Cid, tag datastore.Key) (bool, error) {
 	idtag := getTagKey(id, tag)
 	if _, err := tx.Get(idtag); err != datastore.ErrNotFound {
 		//tag already added, or some other error occurred
-		return false, err
+		return false, err //err is nil if tag is already on id
 	}
 	if err := tx.Put(idtag, nil); err != nil {
+		return false, err
+	}
+	if err := tx.Put(idtag.Reverse(), nil); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -55,7 +58,7 @@ func (c *TagCounted) PutTag(ctx context.Context, id cid.Cid, tag datastore.Key, 
 	return c.txWarp(ctx, func(tx *Tx) error {
 		put, err := txPutTag(tx.transaction, id, tag)
 		if !put {
-			return err
+			return err //err is nil if tag is already on id
 		}
 		_, err = tx.increment(id, bg, c.opt.LinkDecoder)
 		return err
@@ -87,20 +90,83 @@ func (c *TagCounted) GetTags(ctx context.Context, id cid.Cid) ([]datastore.Key, 
 	return tags, nil
 }
 
-func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Key) error {
+func (c *TagCounted) txRemoveTag(tx *Tx, id cid.Cid, tag datastore.Key) error {
 	tk := getTagKey(id, tag)
+	has, err := tx.transaction.Has(tk)
+	if err != nil {
+		return err
+	}
+	if !has {
+		return nil
+	}
+	if err = tx.transaction.Delete(tk); err != nil {
+		return err
+	}
+	if err = tx.transaction.Delete(tk.Reverse()); err != nil {
+		return err
+	}
+	_, err = tx.decrement(id, c.opt.LinkDecoder)
+	return err
+}
+
+func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Key) error {
 	return c.txWarp(ctx, func(tx *Tx) error {
-		has, err := tx.transaction.Has(tk)
+		return c.txRemoveTag(tx, id, tag)
+	})
+}
+
+//UpdateTag adds the tag to all cids in update, and removes the tag from all other cids in the store.
+func (c *TagCounted) UpdateTag(ctx context.Context, tag datastore.Key, update []cid.Cid, bg BlockGetter) error {
+	revPrefix := getTagKeyReversPrefix(tag)
+	q := query.Query{
+		Filters:  []query.Filter{query.FilterKeyPrefix{Prefix: revPrefix}},
+		KeysOnly: true,
+	}
+	return c.txWarp(ctx, func(tx *Tx) error {
+		rs, err := c.ds.Query(q)
 		if err != nil {
 			return err
 		}
-		if !has {
-			return nil
-		}
-		if err = tx.transaction.Delete(tk); err != nil {
+		defer rs.Close()
+		before := make(map[database.Key]struct{})
+		es, err := rs.Rest()
+		if err != nil {
 			return err
 		}
-		_, err = tx.decrement(id, c.opt.LinkDecoder)
-		return err
+
+		// fill all existing keys with this tag to before map
+		for _, e := range es {
+			before[datastore.RawKey(e.Key)] = struct{}{}
+		}
+
+		// for each cid in update, delete form before map or put new tag
+		for _, uid := range update {
+			ukey := getTagKey(uid, tag)
+			if _, exist := before[ukey]; exist {
+				delete(before, ukey)
+				continue
+			}
+			put, err := txPutTag(tx.transaction, uid, tag)
+			if err != nil {
+				return err
+			}
+			if put {
+				if _, err := tx.increment(uid, bg, c.opt.LinkDecoder); err != nil {
+					return err
+				}
+			}
+		}
+
+		// for anything left in update, remove them
+		for tk, _ := range before {
+			id, err := tagKeyToCid(tk)
+			if err != nil {
+				continue
+			}
+			if err := c.txRemoveTag(tx, id, tag); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
