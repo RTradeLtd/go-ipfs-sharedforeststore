@@ -129,7 +129,7 @@ type ProgressManager interface {
 // The HaveBytes values are pessimistic as more existing dependents could already exist.
 // KnownBytes is only available if the data operated on contains this metadata.
 type ProgressReport struct {
-	initalized bool
+	initialized bool
 	//HaveBytes is the amount of bytes we know we have
 	HaveBytes uint64
 	//KnownBytes is the amount of bytes we need

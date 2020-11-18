@@ -58,6 +58,25 @@ func TestTagCounter(t *testing.T) {
 	}
 	checkFullStoreByIterator(t, ctx, cids, store)
 
+	//test add tag A to all cids
+	fatalIfErr(t, store.UpdateTag(ctx, datastore.NewKey("A"), cids, getter))
+	hasA, err := store.HasTag(ctx, cids[3], datastore.NewKey("A"))
+	fatalIfErr(t, err)
+	if !hasA {
+		t.Fatal("tag A should have been added")
+	}
+	//test remove tag A from all cids
+	fatalIfErr(t, store.UpdateTag(ctx, datastore.NewKey("A"), nil, nil))
+	for i, id := range cids {
+		hasA, err = store.HasTag(ctx, id, datastore.NewKey("A"))
+		fatalIfErr(t, err)
+		if hasA {
+			ts, err := store.GetTags(ctx, id)
+			t.Fatalf("tag A should have been removed %v %v %v", i, ts, err)
+		}
+	}
+	fatalIfErr(t, store.UpdateTag(ctx, datastore.NewKey("A"), nil, nil)) // test remove again to make sure there is no error when removing a none existing tag
+
 	for _, c := range tagCases {
 		fatalIfErr(t, store.RemoveTag(ctx, cids[c.node], datastore.NewKey(c.tag)))
 	}

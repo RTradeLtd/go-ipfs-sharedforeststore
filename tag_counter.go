@@ -136,7 +136,7 @@ func (c *TagCounted) UpdateTag(ctx context.Context, tag datastore.Key, update []
 
 		// fill all existing keys with this tag to before map
 		for _, e := range es {
-			before[datastore.RawKey(e.Key)] = struct{}{}
+			before[datastore.RawKey(e.Key).Reverse()] = struct{}{}
 		}
 
 		// for each cid in update, delete form before map or put new tag
@@ -158,7 +158,7 @@ func (c *TagCounted) UpdateTag(ctx context.Context, tag datastore.Key, update []
 		}
 
 		// for anything left in update, remove them
-		for tk, _ := range before {
+		for tk := range before {
 			id, err := tagKeyToCid(tk)
 			if err != nil {
 				continue
