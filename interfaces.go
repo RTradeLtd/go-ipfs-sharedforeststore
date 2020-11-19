@@ -108,6 +108,8 @@ type TagStore interface {
 	//RemoveTag removes a tag set on the cid, the contents are also removed
 	//if there are no tags left.
 	RemoveTag(context.Context, cid.Cid, datastore.Key) error
+	//ReplaceTag combines PutTag and RemoveTag, where all and only the provided cids will remain with the tag.
+	ReplaceTag(context.Context, []cid.Cid, datastore.Key, BlockGetter) error
 }
 
 //TagCounterStore combines the features of both TagStore and CounterStore.

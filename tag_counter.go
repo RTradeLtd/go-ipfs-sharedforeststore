@@ -116,7 +116,7 @@ func (c *TagCounted) RemoveTag(ctx context.Context, id cid.Cid, tag datastore.Ke
 }
 
 //ReplaceTag adds the tag to all cids in update, and removes the tag from all other cids in the store.
-func (c *TagCounted) ReplaceTag(ctx context.Context, tag datastore.Key, update []cid.Cid, bg BlockGetter) error {
+func (c *TagCounted) ReplaceTag(ctx context.Context, update []cid.Cid, tag datastore.Key, bg BlockGetter) error {
 	revPrefix := getTagKeyReversPrefix(tag)
 	q := query.Query{
 		Filters:  []query.Filter{query.FilterKeyPrefix{Prefix: revPrefix.String()}},
