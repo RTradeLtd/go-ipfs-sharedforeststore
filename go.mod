@@ -6,13 +6,13 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/google/addlicense v0.0.0-20200906110928-a0294312aa76
 	github.com/ipfs/go-block-format v0.0.2
-	github.com/ipfs/go-blockservice v0.1.3 // indirect
+	github.com/ipfs/go-blockservice v0.1.4 // indirect
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ds-leveldb v0.4.2
-	github.com/ipfs/go-ipfs-blockstore v1.0.1 // indirect
+	github.com/ipfs/go-ipfs-blockstore v1.0.3 // indirect
 	github.com/ipfs/go-ipfs-util v0.0.2 // indirect
-	github.com/ipfs/go-ipld-cbor v0.0.4 // indirect
+	github.com/ipfs/go-ipld-cbor v0.0.5 // indirect
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-log v1.0.4 // indirect
 	github.com/ipfs/go-log/v2 v2.1.1 // indirect
