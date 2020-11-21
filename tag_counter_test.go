@@ -22,6 +22,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	leveldb "github.com/ipfs/go-ds-leveldb"
 )
 
@@ -84,6 +85,14 @@ func TestTagCounter(t *testing.T) {
 	checkCounts(t, ctx, make([]int64, len(cids)), cids, store)
 	//no blocks from store should be left
 	checkFullStoreByIterator(t, ctx, nil, store)
+	//check that nothing is left in the database
+	rs, err := store.ds.Query(query.Query{})
+	fatalIfErr(t, err)
+	all, err := rs.Rest()
+	fatalIfErr(t, err)
+	if len(all) > 0 {
+		t.Fatalf("data left in the database: %v", all)
+	}
 }
 
 func BenchmarkPutTag(b *testing.B) {
