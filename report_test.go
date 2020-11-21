@@ -30,8 +30,8 @@ func TestReport(t *testing.T) {
 	ctx := context.Background()
 
 	expectedReports := []ProgressReport{
-		{initalized: true},
-		{initalized: true, HaveBytes: 116, KnownBytes: 116},
+		{initialized: true},
+		{initialized: true, HaveBytes: 116, KnownBytes: 116},
 	}
 
 	r := &ProgressReport{}

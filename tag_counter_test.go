@@ -22,6 +22,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	leveldb "github.com/ipfs/go-ds-leveldb"
 )
 
@@ -58,6 +59,25 @@ func TestTagCounter(t *testing.T) {
 	}
 	checkFullStoreByIterator(t, ctx, cids, store)
 
+	//test add tag A to all cids
+	fatalIfErr(t, store.ReplaceTag(ctx, cids, datastore.NewKey("A"), getter))
+	hasA, err := store.HasTag(ctx, cids[3], datastore.NewKey("A"))
+	fatalIfErr(t, err)
+	if !hasA {
+		t.Fatal("tag A should have been added")
+	}
+	//test remove tag A from all cids
+	fatalIfErr(t, store.ReplaceTag(ctx, nil, datastore.NewKey("A"), nil))
+	for i, id := range cids {
+		hasA, err = store.HasTag(ctx, id, datastore.NewKey("A"))
+		fatalIfErr(t, err)
+		if hasA {
+			ts, err := store.GetTags(ctx, id)
+			t.Fatalf("tag A should have been removed %v %v %v", i, ts, err)
+		}
+	}
+	fatalIfErr(t, store.ReplaceTag(ctx, nil, datastore.NewKey("A"), nil)) // test remove again to make sure there is no error when removing a none existing tag
+
 	for _, c := range tagCases {
 		fatalIfErr(t, store.RemoveTag(ctx, cids[c.node], datastore.NewKey(c.tag)))
 	}
@@ -65,6 +85,14 @@ func TestTagCounter(t *testing.T) {
 	checkCounts(t, ctx, make([]int64, len(cids)), cids, store)
 	//no blocks from store should be left
 	checkFullStoreByIterator(t, ctx, nil, store)
+	//check that nothing is left in the database
+	rs, err := store.ds.Query(query.Query{})
+	fatalIfErr(t, err)
+	all, err := rs.Rest()
+	fatalIfErr(t, err)
+	if len(all) > 0 {
+		t.Fatalf("data left in the database: %v", all)
+	}
 }
 
 func BenchmarkPutTag(b *testing.B) {

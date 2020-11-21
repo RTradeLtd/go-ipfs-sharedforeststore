@@ -192,8 +192,8 @@ func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg Bloc
 		return nil, err
 	}
 	m.updateReport(func(r *ProgressReport) {
-		if !r.initalized {
-			r.initalized = true
+		if !r.initialized {
+			r.initialized = true
 			if size != 0 {
 				r.KnownBytes = size
 			}
@@ -208,7 +208,7 @@ func (c *ProgressiveCounted) progressTx(ctx context.Context, id cid.Cid, bg Bloc
 var ErrSizeNotSupported = errors.New("size not supported")
 
 func (c *ProgressiveCounted) GetProgressReport(ctx context.Context, id cid.Cid, r *ProgressReport) error {
-	*r = ProgressReport{initalized: true} //reset
+	*r = ProgressReport{initialized: true} //reset
 	data, err := c.GetBlock(ctx, id)
 	if err != nil {
 		if err == datastore.ErrNotFound {

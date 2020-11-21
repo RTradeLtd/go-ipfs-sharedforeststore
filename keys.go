@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
@@ -135,6 +136,19 @@ func dataKeyToCid(s string) (cid.Cid, error) {
 	return cid.Decode(s[1 : len(s)-len(dataSuffixKey.String())])
 }
 
+func tagKeyToCid(k datastore.Key) (cid.Cid, error) {
+	s := k.String()
+	min := 4
+	if len(s) < min {
+		return cid.Cid{}, errors.Errorf("key:%v is too short to contain cid", s)
+	}
+	index := strings.Index(s[min:], tagSuffixKey.String())
+	if index == -1 {
+		return cid.Cid{}, errors.Errorf("key:%v is not a tag key", s)
+	}
+	return cid.Decode(s[1 : index+min])
+}
+
 func setData(db datastore.Write, id cid.Cid, data []byte) error {
 	return db.Put(getDataKey(id), data)
 }
@@ -152,6 +166,10 @@ var tagSuffixKey = datastore.NewKey("/t")
 
 func getTagKey(id cid.Cid, tag datastore.Key) datastore.Key {
 	return newKeyFromCid(id, tagSuffixKey, tag)
+}
+
+func getTagKeyReversPrefix(tag datastore.Key) datastore.Key {
+	return tagSuffixKey.Child(tag).Reverse()
 }
 
 var internalTagSuffixKey = datastore.NewKey("/i")

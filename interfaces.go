@@ -108,6 +108,8 @@ type TagStore interface {
 	//RemoveTag removes a tag set on the cid, the contents are also removed
 	//if there are no tags left.
 	RemoveTag(context.Context, cid.Cid, datastore.Key) error
+	//ReplaceTag combines PutTag and RemoveTag, where all and only the provided cids will remain with the tag.
+	ReplaceTag(context.Context, []cid.Cid, datastore.Key, BlockGetter) error
 }
 
 //TagCounterStore combines the features of both TagStore and CounterStore.
@@ -129,7 +131,7 @@ type ProgressManager interface {
 // The HaveBytes values are pessimistic as more existing dependents could already exist.
 // KnownBytes is only available if the data operated on contains this metadata.
 type ProgressReport struct {
-	initalized bool
+	initialized bool
 	//HaveBytes is the amount of bytes we know we have
 	HaveBytes uint64
 	//KnownBytes is the amount of bytes we need
